@@ -1,0 +1,125 @@
+# LeoMall 云端单机编排（4C8G 推荐；2C4G 需按 README 调小内存）
+# 用法：在本目录准备好 .env 后
+#   docker compose up -d --build
+# 可选缓存（Redis 语义缓存/embedding 缓存）：
+#   docker compose --profile cache up -d --build   （并在 .env 设 REDIS_URL=redis://redis:6379/0）
+#
+# 端口暴露原则：只有 nginx 的 80 对外；MySQL/后端/Agent/Redis 全部走内部网络。
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: leomall-mysql
+    command:
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 设置 MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
+    volumes:
+      - ./db/data:/var/lib/mysql
+      - ./db/init-sql:/docker-entrypoint-initdb.d:ro
+      - ./db/conf.d:/etc/mysql/conf.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    mem_limit: 1536m
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./leomall
+    container_name: leomall-backend
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_OPTS: ${JAVA_OPTS:--Xms512m -Xmx1g}
+      # 环境变量优先级最高，直接覆盖 jar 内 application-db.yml 的 localhost 连接串
+      SPRING_DATASOURCE_DRUID_URL: jdbc:mysql://mysql:3306/leomall?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&verifyServerCertificate=false&useSSL=false
+      SPRING_DATASOURCE_DRUID_PASSWORD: ${MYSQL_APP_PASSWORD:-leomall123456}
+      # 与 agent 的 INTERNAL_API_TOKEN 保持一致（application-wx.yml 已支持该环境变量）
+      LEOMALL_AGENT_INTERNAL_TOKEN: ${INTERNAL_API_TOKEN:?请在 .env 设置 INTERNAL_API_TOKEN}
+    # 命令行参数优先级最高：Agent 地址指向容器网络；商品图片地址指向公网入口
+    command:
+      - --leomall.agent.base-url=http://agent:8000
+      - --leomall.storage.local.address=${PUBLIC_BASE_URL:?请在 .env 设置 PUBLIC_BASE_URL}/leomall/wx/storage/fetch/
+      - --swagger.production=true
+    volumes:
+      - ./leomall/storage:/app/storage
+      - ./leomall/logs:/app/logs
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 1536m
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: ./agent
+    container_name: leomall-agent
+    environment:
+      TZ: Asia/Shanghai
+      HOST: 0.0.0.0          # 容器内监听所有网卡，但不对宿主机暴露端口
+      PORT: "8000"
+      DATA_DIR: /app/data
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      # 默认本地确定性推荐（零密钥可跑）；配好 LLM_API_KEY 后在 .env 改 LOCAL_FALLBACK=0
+      LOCAL_FALLBACK: ${LOCAL_FALLBACK:-1}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-v4}
+      # 不配 REDIS_URL = 无缓存无队列，意图在 API 进程内直跑（单机推荐形态）
+      REDIS_URL: ${REDIS_URL:-}
+      QUEUE_ENABLED: "0"
+    volumes:
+      - agent-data:/app/data
+      # 商品快照：由本地 package.ps1 导出后随包上传；改价/上下架后替换此文件并重启 agent
+      - ./agent-data/leomall_catalog.json:/app/data/leomall_catalog.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1g
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: leomall-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/leomall.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./www:/usr/share/nginx/www:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    mem_limit: 128m
+    restart: unless-stopped
+
+  # 可选：docker compose --profile cache up -d --build
+  redis:
+    image: redis:7-alpine
+    container_name: leomall-redis
+    profiles: ["cache"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 256m
+    restart: unless-stopped
+
+volumes:
+  agent-data:
+  redis-data:

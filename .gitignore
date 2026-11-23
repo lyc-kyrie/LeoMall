@@ -1,0 +1,90 @@
+### gradle ###
+.gradle
+/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+### STS ###
+.settings/
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+
+### IntelliJ IDEA ###
+/.idea/
+/private/
+/storage/
+/leomall.iml
+.checkstyle
+.idea
+*.iws
+*.iml
+*.ipr
+rebel.xml
+### maven ###
+target/
+*.war
+*.ear
+*.zip
+*.tar
+*.tar.gz
+
+### logs ####
+/logs/
+*.log
+
+### temp ignore ###
+*.cache
+*.diff
+*.patch
+*.tmp
+*.java~
+*.properties~
+*.xml~
+
+### system ignore ###
+.DS_Store
+Thumbs.db
+Servers
+.metadata
+upload
+gen_code
+
+### secrets / credentials（禁止入库）###
+.env
+.env.*
+!.env.example
+!.env.sample
+*.key
+*.pem
+*.p12
+*.pfx
+id_rsa
+*_rsa
+secrets/
+**/application-local.yml
+
+### node / frontend ###
+**/node_modules/
+**/dist/
+**/build/
+.npm/
+.yarn/
+
+### python ###
+**/__pycache__/
+*.py[cod]
+**/.venv/
+**/venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+### 构建产物（体积大，应由构建生成）###
+deploy/cloud/package/leomall/leomall.jar
+
+### workbuddy 本地数据 ###
+.workbuddy/
