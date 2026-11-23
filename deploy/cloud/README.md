@@ -4,9 +4,8 @@
 架构：Nginx(80) → 两个 Vue 前端静态文件 + 反代 Spring Boot(8080) → MySQL 8 / Python Agent(8000)。
 LLM 走外部 API，无需 GPU。
 
-> 说明：`deploy/docker/` 与 `deploy/deploy/` 是旧目录结构（根级 leomall-admin/leomall-vue、MySQL 5.7）
-> 的样例，与当前仓库（admin/、h5/、server/、sql/）不匹配，请勿直接使用。本目录为按当前结构重写的方案。
-> 另外 `server/leomall-all/pom.xml` 拷贝前端的路径指向不存在的 `../leomall-admin/dist`，
+
+>  `server/leomall-all/pom.xml` 拷贝前端的路径指向不存在的 `../leomall-admin/dist`，
 > jar 内不含前端页面 —— 本方案由 Nginx 直接托管前端产物，不依赖 jar 内嵌。
 
 ## 0. 架构与端口
