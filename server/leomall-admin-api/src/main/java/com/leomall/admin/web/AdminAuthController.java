@@ -11,11 +11,13 @@ import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.apache.shiro.subject.Subject;
 import com.leomall.admin.service.LogHelper;
+import com.leomall.admin.shiro.AdminLoginGuard;
 import com.leomall.admin.util.Permission;
 import com.leomall.admin.util.PermissionUtil;
 import com.leomall.core.util.IpUtil;
 import com.leomall.core.util.JacksonUtil;
 import com.leomall.core.util.ResponseUtil;
+import com.leomall.core.util.bcrypt.BCryptPasswordEncoder;
 import com.leomall.db.domain.LeomallAdmin;
 import com.leomall.db.service.LeomallAdminService;
 import com.leomall.db.service.LeomallPermissionService;
@@ -55,6 +57,9 @@ public class AdminAuthController {
     @Autowired
     private Producer kaptchaProducer;
 
+    @Autowired
+    private AdminLoginGuard loginGuard;
+
     @GetMapping("/kaptcha")
     public Object kaptcha(HttpServletRequest request) {
         String kaptcha = doKaptcha(request);
@@ -88,25 +93,33 @@ public class AdminAuthController {
     public Object login(@RequestBody String body, HttpServletRequest request) {
         String username = JacksonUtil.parseString(body, "username");
         String password = JacksonUtil.parseString(body, "password");
-//        String code = JacksonUtil.parseString(body, "code");
+        String code = JacksonUtil.parseString(body, "code");
 
         if (StringUtils.isEmpty(username) || StringUtils.isEmpty(password)) {
             return ResponseUtil.badArgument();
         }
-//        if (StringUtils.isEmpty(code)) {
-//            return ResponseUtil.fail(ADMIN_INVALID_KAPTCHA_REQUIRED, "验证码不能空");
-//        }
 
-//        HttpSession session = request.getSession();
-//        String kaptcha = (String)session.getAttribute("kaptcha");
-//        if (Objects.requireNonNull(code).compareToIgnoreCase(kaptcha) != 0) {
-//            return ResponseUtil.fail(ADMIN_INVALID_KAPTCHA, "验证码不正确", doKaptcha(request));
-//        }
+        // P0-3：连续失败锁定（5 次失败锁 15 分钟），防在线爆破
+        if (loginGuard.isLocked(username)) {
+            return ResponseUtil.fail(ADMIN_INVALID_ACCOUNT, "失败次数过多，账号已临时锁定，请 15 分钟后重试");
+        }
+
+        // P0-3：恢复验证码校验（一次性使用，验后即毁）
+        if (StringUtils.isEmpty(code)) {
+            return ResponseUtil.fail(ADMIN_INVALID_KAPTCHA_REQUIRED, "验证码不能空");
+        }
+        HttpSession session = request.getSession();
+        String kaptcha = (String) session.getAttribute("kaptcha");
+        if (kaptcha == null || code.compareToIgnoreCase(kaptcha) != 0) {
+            return ResponseUtil.fail(ADMIN_INVALID_KAPTCHA, "验证码不正确", doKaptcha(request));
+        }
+        session.removeAttribute("kaptcha");
 
         Subject currentUser = SecurityUtils.getSubject();
         try {
             currentUser.login(new UsernamePasswordToken(username, password));
         } catch (UnknownAccountException uae) {
+            loginGuard.recordFailure(username);
             logHelper.logAuthFail("登录", "用户帐号或密码不正确");
             return ResponseUtil.fail(ADMIN_INVALID_ACCOUNT, "用户帐号或密码不正确", doKaptcha(request));
         } catch (LockedAccountException lae) {
@@ -114,9 +127,11 @@ public class AdminAuthController {
             return ResponseUtil.fail(ADMIN_INVALID_ACCOUNT, "用户帐号已锁定不可用");
 
         } catch (AuthenticationException ae) {
+            loginGuard.recordFailure(username);
             logHelper.logAuthFail("登录", "认证失败");
-            return ResponseUtil.fail(ADMIN_INVALID_ACCOUNT, "认证失败");
+            return ResponseUtil.fail(ADMIN_INVALID_ACCOUNT, "认证失败", doKaptcha(request));
         }
+        loginGuard.recordSuccess(username);
 
         currentUser = SecurityUtils.getSubject();
         LeomallAdmin admin = (LeomallAdmin) currentUser.getPrincipal();
@@ -126,6 +141,10 @@ public class AdminAuthController {
 
         logHelper.logAuthSucceed("登录");
 
+        // P0-3：仍在使用初始弱口令时，标记前端强制跳转修改密码页
+        BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+        boolean mustChangePassword = encoder.matches("admin123", admin.getPassword());
+
         // userInfo
         Map<String, Object> adminInfo = new HashMap<String, Object>();
         adminInfo.put("nickName", admin.getUsername());
@@ -134,6 +153,7 @@ public class AdminAuthController {
         Map<Object, Object> result = new HashMap<Object, Object>();
         result.put("token", currentUser.getSession().getId());
         result.put("adminInfo", adminInfo);
+        result.put("mustChangePassword", mustChangePassword);
         return ResponseUtil.ok(result);
     }
 

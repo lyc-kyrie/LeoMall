@@ -13,6 +13,7 @@ import com.leomall.db.service.LeomallAgentRecommendationService;
 import com.leomall.db.service.LeomallAgentSessionService;
 import com.leomall.db.service.LeomallGoodsService;
 import com.leomall.wx.annotation.LoginUser;
+import com.leomall.wx.service.AgentChatGuard;
 import com.leomall.wx.service.AgentGateway;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
@@ -52,6 +53,8 @@ public class WxAgentController {
     @Autowired
     private AgentGateway agentGateway;
     @Autowired
+    private AgentChatGuard agentChatGuard;
+    @Autowired
     private LeomallAgentSessionService sessionService;
     @Autowired
     private LeomallAgentMessageService messageService;
@@ -75,6 +78,13 @@ public class WxAgentController {
             query = query.substring(0, MAX_QUERY_LENGTH);
         }
 
+        // P1-8：每用户限流（约6次/分钟）+ 每日配额（100次）+ 并发上限（2），
+        // 防 LLM 成本滥用与长请求耗尽 Tomcat 线程。
+        String reject = agentChatGuard.tryAcquire(userId);
+        if (reject != null) {
+            return ResponseUtil.fail(803, reject);
+        }
+        try {
         String sessionId = JacksonUtil.parseString(body, "sessionId");
         LeomallAgentSession session = null;
         if (!StringUtils.isEmpty(sessionId)) {
@@ -193,6 +203,9 @@ public class WxAgentController {
         data.put("degraded", degraded);
         data.put("addTime", formatTime(assistantMessage.getAddTime()));
         return ResponseUtil.ok(data);
+        } finally {
+            agentChatGuard.release(userId);
+        }
     }
 
     /** 当前用户的会话列表（按 userId 隔离）。 */
@@ -237,10 +250,9 @@ public class WxAgentController {
         sessionMap.put("addTime", formatTime(session.getAddTime()));
 
         List<Map<String, Object>> messages = new ArrayList<>();
-        List<LeomallAgentMessage> rows = messageService.queryBySessionId(sessionId);
-        int from = Math.max(0, rows.size() - MAX_HISTORY);
-        for (int i = from; i < rows.size(); i++) {
-            LeomallAgentMessage m = rows.get(i);
+        // P3-6：SQL 层只取最近 MAX_HISTORY 条（升序返回），不再全量加载后截断
+        List<LeomallAgentMessage> rows = messageService.queryRecentBySessionId(sessionId, MAX_HISTORY);
+        for (LeomallAgentMessage m : rows) {
             Map<String, Object> item = new HashMap<>();
             item.put("id", m.getId());
             item.put("role", m.getRole());

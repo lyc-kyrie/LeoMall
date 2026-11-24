@@ -68,10 +68,23 @@ public class AdminStorageController {
     @RequiresPermissionsDesc(menu = {"系统管理", "对象存储"}, button = "编辑")
     @PostMapping("/update")
     public Object update(@RequestBody LeomallStorage leomallStorage) {
-        if (leomallStorageService.update(leomallStorage) == 0) {
+        // P2-8：仅允许修改展示名称。key/url/type/size 由服务端上传时写入，
+        // 防止篡改存储记录指向任意路径/类型（配合 fetch 内联回显扩大攻击面）。
+        if (leomallStorage.getId() == null) {
+            return ResponseUtil.badArgument();
+        }
+        LeomallStorage existing = leomallStorageService.findById(leomallStorage.getId());
+        if (existing == null) {
+            return ResponseUtil.badArgumentValue();
+        }
+        LeomallStorage patch = new LeomallStorage();
+        patch.setId(existing.getId());
+        patch.setName(leomallStorage.getName());
+        if (leomallStorageService.update(patch) == 0) {
             return ResponseUtil.updatedDataFailed();
         }
-        return ResponseUtil.ok(leomallStorage);
+        existing.setName(patch.getName());
+        return ResponseUtil.ok(existing);
     }
 
     @RequiresPermissions("admin:storage:delete")

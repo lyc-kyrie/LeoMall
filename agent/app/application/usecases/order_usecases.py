@@ -69,9 +69,12 @@ class QueryOrderUseCase:
     def __init__(self, order_repo: OrderRepository) -> None:
         self._order_repo = order_repo
 
-    async def execute(self, order_id: str) -> dict:
+    async def execute(self, order_id: str, buyer_id: str | None = None) -> dict:
         order = await self._order_repo.find_by_id(order_id)
         if order is None:
+            raise ValueError(f"订单不存在：{order_id}")
+        # P0-6：调用方传入买家身份时校验归属；不匹配按「不存在」处理，避免订单枚举
+        if buyer_id is not None and order.buyer_id != buyer_id:
             raise ValueError(f"订单不存在：{order_id}")
         return order.snapshot()
 
@@ -81,9 +84,12 @@ class CancelOrderUseCase:
         self._product_repo = product_repo
         self._order_repo = order_repo
 
-    async def execute(self, order_id: str, reason: str) -> dict:
+    async def execute(self, order_id: str, reason: str, buyer_id: str | None = None) -> dict:
         order = await self._order_repo.find_by_id(order_id)
         if order is None:
+            raise ValueError(f"订单不存在：{order_id}")
+        # P0-6：取消同样校验买家归属，杜绝越权取消他人订单
+        if buyer_id is not None and order.buyer_id != buyer_id:
             raise ValueError(f"订单不存在：{order_id}")
         order.cancel(reason)
         # 取消后回补库存

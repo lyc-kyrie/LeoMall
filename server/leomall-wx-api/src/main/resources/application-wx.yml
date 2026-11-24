@@ -1,12 +1,15 @@
 # 智能导购 Agent（外部 Python 服务）接入配置
 # 该服务只监听 127.0.0.1，由 Spring Boot 作为 BFF 转发，不直接暴露给用户端。
 leomall:
+  # 用户端 JWT 签名密钥（P0-1）：必须由环境变量 LEOMALL_JWT_SECRET 注入，
+  # >=32 字符强随机串；未配置应用拒绝启动。更换密钥即令存量 token 全部失效。
+  jwt-secret: ${LEOMALL_JWT_SECRET:}
   agent:
     base-url: http://127.0.0.1:8000
-    # 必须与 leomall-agent 的 INTERNAL_API_TOKEN 一致；留空则不发送（仅本机调试）
-    # 生产用环境变量 LEOMALL_AGENT_INTERNAL_TOKEN 注入；下方默认值仅供本机开发，
-    # 会随 jar 分发，切勿在此放置真实凭据。
-    internal-token: ${LEOMALL_AGENT_INTERNAL_TOKEN:leomall-agent-dev-2026}
+    # 必须与 leomall-agent 的 INTERNAL_API_TOKEN 一致；留空则不发送。
+    # 不提供任何默认值（P0-6）：默认值会随 jar 分发等于公开凭据。
+    # 开发/生产都用环境变量 LEOMALL_AGENT_INTERNAL_TOKEN 注入，两侧保持一致。
+    internal-token: ${LEOMALL_AGENT_INTERNAL_TOKEN:}
     connect-timeout-ms: 3000
     read-timeout-ms: 60000
     top-k: 5

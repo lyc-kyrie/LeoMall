@@ -1,69 +1,75 @@
-name: Actions
+# P3-1 重建：旧工作流在根目录跑 mvn verify（根目录无 pom）、引用不存在的
+# leomall-admin / leomall-vue 目录，CI 从未真正生效。现按真实目录结构重写：
+#   server/  Maven 多模块（JDK 8，纯单元测试，无需 MySQL/Redis）
+#   admin/   Vue2 管理后台（Node 18 + openssl-legacy-provider 构建）
+#   h5/      Vue2 移动端（同上）
+#   agent/   Python FastAPI（uv 锁定依赖，编译 + 导入冒烟）
+# 说明：agent 的 pytest 存在 15 个存量夹具失败（演示目录快照不匹配，见
+# docs/AUDIT.md 第九节），修复前暂不作为 CI 门禁，避免长期红牌掩盖新回归。
+name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, master]
+  pull_request:
 
 jobs:
-  # Building and testing Java with Maven
-  # https://docs.github.com/en/actions/guides/building-and-testing-java-with-maven
-  Leomall-all:
+  backend:
+    name: Backend (Maven / JDK 8)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        java-version:
-        - 8
-        - 8.0.192
-        - 11
-        - 11.0.3
+    defaults:
+      run:
+        working-directory: server
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up JDK ${{ matrix.java-version }}
-      uses: actions/setup-java@v2
-      with:
-        java-version: ${{ matrix.java-version }}
-        distribution: zulu
-    - name: Cache Maven packages
-      uses: actions/cache@v2
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
-    - name: Build with Maven
-      run: mvn --batch-mode --update-snapshots verify
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+      - name: Build and unit tests
+        run: mvn -B -ntp verify
 
-  # Building and testing Node.js
-  # https://docs.github.com/en/actions/guides/building-and-testing-nodejs
-  Leomall-admin:
+  frontend:
+    name: Frontend (${{ matrix.app }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        node-version:
-        - 10.x
-        - 12.x
-        - 14.x
-        # - 15.x
+        app: [admin, h5]
+    defaults:
+      run:
+        working-directory: ${{ matrix.app }}
     steps:
-    - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: npm --prefix leomall-admin install
-    - run: npm --prefix leomall-admin run test
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+          cache-dependency-path: ${{ matrix.app }}/package-lock.json
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund --legacy-peer-deps
+      - name: Build
+        run: npm run build
+        env:
+          # webpack4 的 md4 哈希在 Node 17+ 需要 OpenSSL legacy provider
+          NODE_OPTIONS: --openssl-legacy-provider
 
-  Leomall-vue:
+  agent:
+    name: Agent (Python / uv)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version:
-        - 10.x
-        - 12.x
-        - 14.x
-        # - 15.x
+    defaults:
+      run:
+        working-directory: agent
     steps:
-    - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - run: npm --prefix leomall-vue install
-    - run: npm --prefix leomall-vue run test
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.11'
+          enable-cache: true
+      - name: Install locked dependencies
+        run: uv sync --frozen
+      - name: Compile and import smoke
+        run: |
+          uv run python -m compileall -q app
+          uv run python -c "import app.presentation.server; print('agent import OK')"

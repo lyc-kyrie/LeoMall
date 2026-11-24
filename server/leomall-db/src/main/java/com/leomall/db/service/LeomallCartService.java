@@ -104,6 +104,15 @@ public class LeomallCartService {
         cartMapper.logicalDeleteByPrimaryKey(id);
     }
 
+    /** P1-2：带归属校验的逻辑删除，防止越权删除他人购物车 */
+    public int deleteById(Integer userId, Integer id) {
+        LeomallCart cart = new LeomallCart();
+        cart.setDeleted(true);
+        LeomallCartExample example = new LeomallCartExample();
+        example.or().andIdEqualTo(id).andUserIdEqualTo(userId).andDeletedEqualTo(false);
+        return cartMapper.updateByExampleSelective(cart, example);
+    }
+
     public boolean checkExist(Integer goodsId) {
         LeomallCartExample example = new LeomallCartExample();
         example.or().andGoodsIdEqualTo(goodsId).andCheckedEqualTo(true).andDeletedEqualTo(false);

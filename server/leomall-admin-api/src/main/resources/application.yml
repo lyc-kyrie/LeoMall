@@ -15,5 +15,9 @@ logging:
     com.leomall.admin:  DEBUG
     com.leomall:  ERROR
 
-swagger:
-  production: false
+# 阶段2A：springdoc 开关（生产设 SWAGGER_ENABLED=false 关闭在线文档）
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}

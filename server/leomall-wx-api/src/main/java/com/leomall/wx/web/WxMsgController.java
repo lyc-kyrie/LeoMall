@@ -57,7 +57,7 @@ public class WxMsgController {
         try {
             wxMaMessage = WxMaMessage.fromXml(request.getInputStream());
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("解析微信消息推送失败", e);
         }
         if (wxMaMessage != null) {
             String msgType = wxMaMessage.getMsgType();

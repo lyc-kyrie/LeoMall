@@ -5,6 +5,7 @@ import org.apache.commons.logging.LogFactory;
 import com.leomall.core.system.SystemConfig;
 import com.leomall.db.domain.*;
 import com.leomall.db.service.*;
+import com.leomall.db.util.CouponUserConstant;
 import com.leomall.db.util.OrderUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -31,6 +32,56 @@ public class OrderJob {
     private LeomallGrouponService grouponService;
     @Autowired
     private LeomallGrouponRulesService rulesService;
+    @Autowired
+    private LeomallCouponUserService couponUserService;
+
+    /**
+     * P2-2：未支付订单超时取消的 DB 扫描兜底。
+     *
+     * 原实现仅靠内存延迟队列（OrderUnpaidTask）+ 启动重挂，任务异常丢失或
+     * 长时间停机后订单会永远占用库存。这里每 10 分钟扫描一次超时未支付订单，
+     * 执行与 OrderUnpaidTask 相同的取消逻辑（乐观锁 + 回补库存 + 返还优惠券）。
+     * 与内存任务互为幂等：乐观锁保证只有一方更新成功。
+     */
+    @Scheduled(cron = "0 */10 * * * ?")
+    public void checkOrderUnpaid() {
+        Integer unpaidMinutes = SystemConfig.getOrderUnpaid();
+        LocalDateTime deadline = LocalDateTime.now().minusMinutes(unpaidMinutes);
+        List<LeomallOrder> orderList = orderService.queryUnpaid(unpaidMinutes);
+        for (LeomallOrder order : orderList) {
+            if (order.getAddTime() == null || order.getAddTime().isAfter(deadline)) {
+                continue;
+            }
+            if (!OrderUtil.isCreateStatus(order)) {
+                continue;
+            }
+
+            order.setOrderStatus(OrderUtil.STATUS_AUTO_CANCEL);
+            order.setEndTime(LocalDateTime.now());
+            if (orderService.updateWithOptimisticLocker(order) == 0) {
+                logger.info("订单 ID=" + order.getId() + " 已被其他任务处理，放弃超时取消");
+                continue;
+            }
+
+            // 回补库存
+            List<LeomallOrderGoods> orderGoodsList = orderGoodsService.queryByOid(order.getId());
+            for (LeomallOrderGoods orderGoods : orderGoodsList) {
+                if (productService.addStock(orderGoods.getProductId(), orderGoods.getNumber()) == 0) {
+                    logger.error("订单 ID=" + order.getId() + " 超时取消回补库存失败 productId=" + orderGoods.getProductId());
+                }
+            }
+
+            // 返还优惠券
+            List<LeomallCouponUser> couponUsers = couponUserService.findByOid(order.getId());
+            for (LeomallCouponUser couponUser : couponUsers) {
+                couponUser.setStatus(CouponUserConstant.STATUS_USABLE);
+                couponUser.setUpdateTime(LocalDateTime.now());
+                couponUserService.update(couponUser);
+            }
+
+            logger.info("订单 ID=" + order.getId() + " 超时未支付，已兜底取消");
+        }
+    }
 
     /**
      * 自动确认订单

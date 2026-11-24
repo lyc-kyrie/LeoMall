@@ -4,6 +4,7 @@ import com.leomall.db.domain.LeomallCart;
 import com.leomall.db.domain.LeomallCoupon;
 import com.leomall.db.domain.LeomallCouponUser;
 import com.leomall.db.util.CouponConstant;
+import com.leomall.db.util.CouponUserConstant;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -43,6 +44,18 @@ public class CouponVerifyService {
         }
 
         if (couponUser == null) {
+            return null;
+        }
+
+        // P0-2：券必须归属当前用户、未被删除且处于「可用」状态。
+        // 原实现只校验 couponId 匹配，导致可用他人券、已用券在有效期内反复复用。
+        if (!userId.equals(couponUser.getUserId())) {
+            return null;
+        }
+        if (Boolean.TRUE.equals(couponUser.getDeleted())) {
+            return null;
+        }
+        if (!CouponUserConstant.STATUS_USABLE.equals(couponUser.getStatus())) {
             return null;
         }
 

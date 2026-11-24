@@ -4,14 +4,8 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.security.SecureRandom;
-
-@RunWith(PowerMockRunner.class)
+/** P3-9：移除 PowerMock（唯一使用点 testGensalt 改为格式断言），纯 JUnit 运行 */
 public class BCryptTest {
 
     @Rule
@@ -88,13 +82,14 @@ public class BCryptTest {
                 BCrypt.hashpw("foo", "$2$09$......................"));
     }
 
-    @PrepareForTest({BCrypt.class, SecureRandom.class})
     @Test
-    public void testGensalt() throws Exception {
-        PowerMockito.whenNew(SecureRandom.class).withNoArguments()
-                .thenReturn(PowerMockito.mock(SecureRandom.class));
-        Assert.assertEquals("$2a$10$......................", BCrypt.gensalt());
-        Assert.assertEquals("$2a$09$......................", BCrypt.gensalt(9));
+    public void testGensalt() {
+        String salt = BCrypt.gensalt();
+        Assert.assertTrue(salt.startsWith("$2a$10$"));
+        Assert.assertEquals(29, salt.length());
+        String salt9 = BCrypt.gensalt(9);
+        Assert.assertTrue(salt9.startsWith("$2a$09$"));
+        Assert.assertEquals(29, salt9.length());
     }
 
     @Test

@@ -8,6 +8,7 @@ import org.apache.shiro.subject.Subject;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.JacksonUtil;
 import com.leomall.core.util.ResponseUtil;
+import com.leomall.core.util.RichTextUtil;
 import com.leomall.core.validator.Order;
 import com.leomall.core.validator.Sort;
 import com.leomall.db.domain.*;
@@ -73,6 +74,8 @@ public class AdminNoticeController {
         if (error != null) {
             return error;
         }
+        // P2-9：公告内容富文本入库前白名单消毒
+        notice.setContent(RichTextUtil.clean(notice.getContent()));
         // 1. 添加通知记录
         notice.setAdminId(getAdminId());
         noticeService.add(notice);
@@ -108,6 +111,8 @@ public class AdminNoticeController {
         if (error != null) {
             return error;
         }
+        // P2-9：公告内容富文本入库前白名单消毒
+        notice.setContent(RichTextUtil.clean(notice.getContent()));
         LeomallNotice originalNotice = noticeService.findById(notice.getId());
         if (originalNotice == null) {
             return ResponseUtil.badArgument();

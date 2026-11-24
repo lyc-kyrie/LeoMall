@@ -167,7 +167,7 @@ public class JacksonUtil {
         try {
             return objectMapper.writeValueAsString(data);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            logger.error("JSON 序列化失败", e);
         }
         return null;
     }

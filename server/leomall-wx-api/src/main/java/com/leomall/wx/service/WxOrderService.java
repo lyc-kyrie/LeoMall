@@ -17,6 +17,7 @@ import com.leomall.core.express.dao.ExpressInfo;
 import com.leomall.core.notify.NotifyService;
 import com.leomall.core.notify.NotifyType;
 import com.leomall.core.qcode.QCodeService;
+import com.leomall.core.state.StateStore;
 import com.leomall.core.system.SystemConfig;
 import com.leomall.core.task.TaskService;
 import com.leomall.core.util.DateTimeUtil;
@@ -33,12 +34,17 @@ import com.leomall.wx.task.OrderUnpaidTask;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationAdapter;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.Assert;
+import org.springframework.util.DigestUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -69,6 +75,10 @@ import static com.leomall.wx.util.WxResponseCode.*;
 public class WxOrderService {
     private final Log logger = LogFactory.getLog(WxOrderService.class);
 
+    /** 阶段1：下单短窗口去重占位（StateStore；Redis 启用后跨实例幂等） */
+    @Autowired
+    private StateStore stateStore;
+
     @Autowired
     private LeomallUserService userService;
     @Autowired
@@ -83,6 +93,8 @@ public class WxOrderService {
     private LeomallRegionService regionService;
     @Autowired
     private LeomallGoodsProductService productService;
+    @Autowired
+    private LeomallGoodsService goodsService;
     @Autowired
     private WxPayService wxPayService;
     @Autowired
@@ -252,6 +264,23 @@ public class WxOrderService {
         if (body == null) {
             return ResponseUtil.badArgument();
         }
+        // P2-3 / 阶段1：防重复提交——同一用户相同请求体 10 秒窗口内拒绝（SETNX 占位）；
+        // 事务回滚时自动释放占位，失败后重试不受影响。
+        String idempotentKey = "leomall:order:submit:" + userId + ":"
+                + DigestUtils.md5DigestAsHex(body.getBytes(StandardCharsets.UTF_8));
+        if (!stateStore.setIfAbsent(idempotentKey, "1", Duration.ofSeconds(10))) {
+            return ResponseUtil.fail(ORDER_INVALID, "请勿重复提交订单");
+        }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronizationAdapter() {
+                @Override
+                public void afterCompletion(int status) {
+                    if (status != STATUS_COMMITTED) {
+                        stateStore.delete(idempotentKey);
+                    }
+                }
+            });
+        }
         Integer cartId = JacksonUtil.parseInteger(body, "cartId");
         Integer addressId = JacksonUtil.parseInteger(body, "addressId");
         Integer couponId = JacksonUtil.parseInteger(body, "couponId");
@@ -323,12 +352,30 @@ public class WxOrderService {
         if (cartId.equals(0)) {
             checkedGoodsList = cartService.queryByUidAndChecked(userId);
         } else {
-            LeomallCart cart = cartService.findById(cartId);
+            // P1-2：校验购物车归属，防止横向越权使用/删除他人购物车
+            LeomallCart cart = cartService.findById(userId, cartId);
+            if (cart == null) {
+                return ResponseUtil.badArgumentValue();
+            }
             checkedGoodsList = new ArrayList<>(1);
             checkedGoodsList.add(cart);
         }
         if (checkedGoodsList.size() == 0) {
             return ResponseUtil.badArgumentValue();
+        }
+        // P1-6：下单时复核现价与在售状态，购物车快照价仅用于展示
+        for (LeomallCart checkGoods : checkedGoodsList) {
+            LeomallGoods goods = goodsService.findById(checkGoods.getGoodsId());
+            if (goods == null || !goods.getIsOnSale()) {
+                return ResponseUtil.fail(GOODS_UNSHELVE, "商品已下架");
+            }
+            LeomallGoodsProduct product = productService.findById(checkGoods.getProductId());
+            if (product == null) {
+                return ResponseUtil.badArgumentValue();
+            }
+            if (product.getPrice().compareTo(checkGoods.getPrice()) != 0) {
+                return ResponseUtil.fail(ORDER_CHECKOUT_FAIL, "商品价格已变化，请刷新后重新下单");
+            }
         }
         BigDecimal checkedGoodsPrice = new BigDecimal(0);
         for (LeomallCart checkGoods : checkedGoodsList) {
@@ -419,7 +466,7 @@ public class WxOrderService {
         if(cartId.equals(0)){
             cartService.clearGoods(userId);
         }else{
-            cartService.deleteById(cartId);
+            cartService.deleteById(userId, cartId);
         }
 
         // 商品货品数量减少
@@ -436,13 +483,13 @@ public class WxOrderService {
             }
         }
 
-        // 如果使用了优惠券，设置优惠券使用状态
+        // 如果使用了优惠券，原子核销（P0-2）：
+        // 条件更新「归属当前用户 + 仍可用」，影响行数为 0 则抛异常回滚整单，
+        // 杜绝同一张券并发/重复使用与他人券越权核销。
         if (couponId != 0 && couponId != -1) {
-            LeomallCouponUser couponUser = couponUserService.findById(userCouponId);
-            couponUser.setStatus(CouponUserConstant.STATUS_USED);
-            couponUser.setUsedTime(LocalDateTime.now());
-            couponUser.setOrderId(orderId);
-            couponUserService.update(couponUser);
+            if (couponUserService.markUsed(userId, userCouponId, orderId) == 0) {
+                throw new RuntimeException("优惠券不可用或已被使用");
+            }
         }
 
         //如果是团购项目，添加团购信息
@@ -472,8 +519,9 @@ public class WxOrderService {
 
         // NOTE: 建议开发者从业务场景核实下面代码，防止用户利用业务BUG使订单跳过支付环节。
         // 如果订单实际支付费用是0，则直接跳过支付变成待发货状态
+        // P0-2 配套：金额比较用 compareTo（equals 受 scale 影响，0 与 0.00 会判不等）
         boolean payed = false;
-        if (order.getActualPrice().equals(new BigDecimal("0.00"))) {
+        if (order.getActualPrice().compareTo(BigDecimal.ZERO) == 0) {
             payed = true;
 
             LeomallOrder o = new LeomallOrder();
@@ -649,7 +697,7 @@ public class WxOrderService {
 
             result = wxPayService.createOrder(orderRequest);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("微信支付统一下单失败", e);
             return ResponseUtil.fail(ORDER_PAY_FAIL, "订单不能支付");
         }
 
@@ -707,7 +755,7 @@ public class WxOrderService {
             result = wxPayService.createOrder(orderRequest);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("H5 微信支付下单失败", e);
         }
 
         return ResponseUtil.ok(result);
@@ -730,7 +778,7 @@ public class WxOrderService {
         try {
             xmlResult = IOUtils.toString(request.getInputStream(), request.getCharacterEncoding());
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("读取微信支付回调报文失败", e);
             return WxPayNotifyResponse.fail(e.getMessage());
         }
 
@@ -747,7 +795,7 @@ public class WxOrderService {
                 throw new WxPayException("微信通知支付失败！");
             }
         } catch (WxPayException e) {
-            e.printStackTrace();
+            logger.error("解析微信支付回调失败", e);
             return WxPayNotifyResponse.fail(e.getMessage());
         }
 
@@ -769,8 +817,8 @@ public class WxOrderService {
             return WxPayNotifyResponse.success("订单已经处理成功!");
         }
 
-        // 检查支付订单金额
-        if (!totalFee.equals(order.getActualPrice().toString())) {
+        // 检查支付订单金额（P2-1：数值比较用 compareTo，避免 scale/格式差异误判）
+        if (new BigDecimal(totalFee).compareTo(order.getActualPrice()) != 0) {
             return WxPayNotifyResponse.fail(order.getOrderSn() + " : 支付金额不符合 totalFee=" + totalFee);
         }
 

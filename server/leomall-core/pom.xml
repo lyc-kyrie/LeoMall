@@ -11,6 +11,20 @@
     </parent>
 
     <dependencies>
+        <!-- 阶段1：Redis 共享状态（验证码/锁定/去重/分布式锁/限流/会话）。
+             leomall.redis.enabled=false（默认）时不建立连接，本机开发无需 Redis。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.hibernate.validator</groupId>
             <artifactId>hibernate-validator</artifactId>

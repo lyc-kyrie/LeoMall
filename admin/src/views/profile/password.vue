@@ -78,6 +78,8 @@ export default {
           return
         }
         changePassword(this.dataForm).then(response => {
+          // P0-3：初始密码已修改，解除强制跳转
+          sessionStorage.removeItem('mustChangePassword')
           this.$notify.success({
             title: '成功',
             message: '修改密码成功'

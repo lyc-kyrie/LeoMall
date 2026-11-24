@@ -49,32 +49,63 @@ public class AgentGateway {
     @Value("${leomall.agent.read-timeout-ms:60000}")
     private int readTimeoutMs;
 
+    // P1-8 / 阶段1：全局在途上限（本实例线程保护，保持进程内）+ 熔断状态共享。
+    // 熔断计数/开路标志走 StateStore：Redis 启用后任一实例触发熔断，
+    // 所有实例同时快速失败，避免故障期间继续向 Agent 压请求。
+    private static final int MAX_INFLIGHT = 20;
+    private static final int BREAKER_FAILURE_THRESHOLD = 5;
+    private static final String BREAKER_FAIL_KEY = "leomall:agent:breaker:fail";
+    private static final String BREAKER_OPEN_KEY = "leomall:agent:breaker:open";
+    private final java.util.concurrent.Semaphore inflight = new java.util.concurrent.Semaphore(MAX_INFLIGHT);
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.leomall.core.state.StateStore stateStore;
+
     /** 返回已规范化的回复：sessionId / finalText / recommendations / model / degraded / recallStrategy。 */
     public Map<String, Object> chat(String sessionId, Integer userId, String rawQuery) throws IOException {
-        Map<String, Object> body = new HashMap<>();
-        body.put("shopping_session_id", sessionId);
-        body.put("buyer_id", String.valueOf(userId));
-        body.put("locale", "zh-CN");
-        body.put("currency", "CNY");
-        body.put("raw_query", rawQuery);
-
-        String response = postJson("/commerce/intents", JacksonUtil.toJson(body));
-        JsonNode root = MAPPER.readTree(response);
-        if (root == null || !root.isObject()) {
-            throw new IOException("Agent 服务返回格式异常：" + abbreviate(response));
+        if (stateStore.get(BREAKER_OPEN_KEY) != null) {
+            throw new IOException("Agent 服务熔断中，暂时不可用");
         }
-        if (root.hasNonNull("detail") && !root.has("final_text")) {
-            throw new IOException("Agent 服务拒绝请求：" + root.get("detail").asText());
+        if (!inflight.tryAcquire()) {
+            throw new IOException("Agent 服务繁忙，请稍后重试");
         }
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("shopping_session_id", sessionId);
+            body.put("buyer_id", String.valueOf(userId));
+            body.put("locale", "zh-CN");
+            body.put("currency", "CNY");
+            body.put("raw_query", rawQuery);
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("sessionId", text(root, "shopping_session_id", sessionId));
-        result.put("finalText", text(root, "final_text", ""));
-        result.put("model", text(root, "model", ""));
-        result.put("degraded", root.path("degraded").asBoolean(false));
-        result.put("recallStrategy", text(root, "recall_strategy", ""));
-        result.put("recommendations", parseRecommendations(root.path("recommendations")));
-        return result;
+            String response = postJson("/commerce/intents", JacksonUtil.toJson(body));
+            JsonNode root = MAPPER.readTree(response);
+            if (root == null || !root.isObject()) {
+                throw new IOException("Agent 服务返回格式异常：" + abbreviate(response));
+            }
+            if (root.hasNonNull("detail") && !root.has("final_text")) {
+                throw new IOException("Agent 服务拒绝请求：" + root.get("detail").asText());
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("sessionId", text(root, "shopping_session_id", sessionId));
+            result.put("finalText", text(root, "final_text", ""));
+            result.put("model", text(root, "model", ""));
+            result.put("degraded", root.path("degraded").asBoolean(false));
+            result.put("recallStrategy", text(root, "recall_strategy", ""));
+            result.put("recommendations", parseRecommendations(root.path("recommendations")));
+            stateStore.delete(BREAKER_FAIL_KEY);
+            return result;
+        } catch (IOException | RuntimeException e) {
+            if (stateStore.increment(BREAKER_FAIL_KEY, java.time.Duration.ofSeconds(60))
+                    >= BREAKER_FAILURE_THRESHOLD) {
+                stateStore.set(BREAKER_OPEN_KEY, "1", java.time.Duration.ofSeconds(30));
+                stateStore.delete(BREAKER_FAIL_KEY);
+                logger.warn("Agent 连续失败达到阈值，熔断 30 秒");
+            }
+            throw e;
+        } finally {
+            inflight.release();
+        }
     }
 
     private List<Map<String, Object>> parseRecommendations(JsonNode array) {

@@ -7,10 +7,12 @@ pagehelper:
 spring:
   datasource:
     druid:
-      url:  jdbc:mysql://localhost:3306/leomall?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&verifyServerCertificate=false&useSSL=false
+      # P1-7：支持环境变量覆盖；默认值仅用于本机开发（与 sql/leomall_schema.sql 对齐），
+      # 生产必须通过 LEOMALL_MYSQL_URL / LEOMALL_MYSQL_USER / LEOMALL_MYSQL_PASSWORD 注入。
+      url:  ${LEOMALL_MYSQL_URL:jdbc:mysql://localhost:3306/leomall?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&verifyServerCertificate=false&useSSL=false}
       driver-class-name:  com.mysql.cj.jdbc.Driver
-      username:  leomall
-      password:  leomall123456
+      username:  ${LEOMALL_MYSQL_USER:leomall}
+      password:  ${LEOMALL_MYSQL_PASSWORD:leomall123456}
       initial-size:  10
       max-active:  50
       min-idle:  10

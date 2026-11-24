@@ -14,12 +14,14 @@ import com.leomall.core.validator.Order;
 import com.leomall.core.validator.Sort;
 import com.leomall.db.domain.LeomallAdmin;
 import com.leomall.db.service.LeomallAdminService;
+import com.leomall.db.service.LeomallPermissionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.constraints.NotNull;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.leomall.admin.util.AdminResponseCode.*;
@@ -33,6 +35,8 @@ public class AdminAdminController {
     @Autowired
     private LeomallAdminService adminService;
     @Autowired
+    private LeomallPermissionService permissionService;
+    @Autowired
     private LogHelper logHelper;
 
     @RequiresPermissions("admin:admin:list")
@@ -44,7 +48,26 @@ public class AdminAdminController {
                        @Sort @RequestParam(defaultValue = "add_time") String sort,
                        @Order @RequestParam(defaultValue = "desc") String order) {
         List<LeomallAdmin> adminList = adminService.querySelective(username, page, limit, sort, order);
+        // P2-7：响应剔除密码哈希，避免外泄助长离线爆破
+        adminList.forEach(a -> a.setPassword(null));
         return ResponseUtil.okList(adminList);
+    }
+
+    /** P2-7：非超级管理员不得授予超级管理员角色（防自提权） */
+    private Object validateRoleGrant(Integer[] roleIds) {
+        if (roleIds == null || roleIds.length == 0) {
+            return null;
+        }
+        Subject currentUser = SecurityUtils.getSubject();
+        if (currentUser.isPermitted("*")) {
+            return null;
+        }
+        for (Integer roleId : roleIds) {
+            if (roleId != null && permissionService.checkSuperPermission(roleId)) {
+                return ResponseUtil.fail(ROLE_SUPER_SUPERMISSION, "仅超级管理员可授予超级管理员角色");
+            }
+        }
+        return null;
     }
 
     private Object validate(LeomallAdmin admin) {
@@ -70,6 +93,10 @@ public class AdminAdminController {
         if (error != null) {
             return error;
         }
+        error = validateRoleGrant(admin.getRoleIds());
+        if (error != null) {
+            return error;
+        }
 
         String username = admin.getUsername();
         List<LeomallAdmin> adminList = adminService.findAdmin(username);
@@ -83,6 +110,7 @@ public class AdminAdminController {
         admin.setPassword(encodedPassword);
         adminService.add(admin);
         logHelper.logAuthSucceed("添加管理员", username);
+        admin.setPassword(null);
         return ResponseUtil.ok(admin);
     }
 
@@ -91,6 +119,9 @@ public class AdminAdminController {
     @GetMapping("/read")
     public Object read(@NotNull Integer id) {
         LeomallAdmin admin = adminService.findById(id);
+        if (admin != null) {
+            admin.setPassword(null);
+        }
         return ResponseUtil.ok(admin);
     }
 
@@ -106,6 +137,19 @@ public class AdminAdminController {
         Integer anotherAdminId = admin.getId();
         if (anotherAdminId == null) {
             return ResponseUtil.badArgument();
+        }
+        Object roleError = validateRoleGrant(admin.getRoleIds());
+        if (roleError != null) {
+            return roleError;
+        }
+        // P2-7：非超级管理员不得编辑超级管理员账号（防间接提权）
+        Subject currentUser = SecurityUtils.getSubject();
+        if (!currentUser.isPermitted("*")) {
+            LeomallAdmin existing = adminService.findById(anotherAdminId);
+            if (existing != null && existing.getRoleIds() != null
+                    && permissionService.checkSuperPermission(Arrays.asList(existing.getRoleIds()))) {
+                return ResponseUtil.fail(ADMIN_ALTER_NOT_ALLOWED, "仅超级管理员可编辑超级管理员账号");
+            }
         }
 
         // 不允许管理员通过编辑接口修改密码

@@ -21,15 +21,15 @@
         <el-input v-model="loginForm.password" :type="passwordType" name="password" auto-complete="on" tabindex="2" show-password :placeholder="$t('login.placeholder.password')" @keyup.enter.native="handleLogin" />
       </el-form-item>
 
-      <!-- <el-form-item prop="code">
+      <el-form-item prop="code">
         <span class="svg-container">
           <svg-icon icon-class="lock" />
         </span>
-        <el-input v-model="loginForm.code" auto-complete="off" name="code" tabindex="2" placeholder="验证码" style="width: 60%" @keyup.enter.native="handleLogin" />
+        <el-input v-model="loginForm.code" auto-complete="off" name="code" tabindex="3" placeholder="验证码" style="width: 60%" @keyup.enter.native="handleLogin" />
         <div class="login-code">
           <img :src="codeImg" @click="getCode">
         </div>
-      </el-form-item> -->
+      </el-form-item>
 
       <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">{{ $t('login.button.login') }}</el-button>
 
@@ -67,7 +67,8 @@ export default {
         password: [
           { required: true, message: '管理员密码不允许为空', trigger: 'blur' },
           { validator: validatePassword, trigger: 'blur' }
-        ]
+        ],
+        code: [{ required: true, message: '验证码不允许为空', trigger: 'blur' }]
       },
       passwordType: 'password',
       loading: false

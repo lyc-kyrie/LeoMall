@@ -1,5 +1,7 @@
 package com.leomall.core.task;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.util.concurrent.DelayQueue;
@@ -7,6 +9,7 @@ import java.util.concurrent.Executors;
 
 @Component
 public class TaskService {
+    private static final Log logger = LogFactory.getLog(TaskService.class);
     private TaskService taskService;
     private DelayQueue<Task> delayQueue =  new DelayQueue<Task>();
 
@@ -22,7 +25,7 @@ public class TaskService {
                         Task task = delayQueue.take();
                         task.run();
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        logger.error("延迟任务执行失败", e);
                     }
                 }
             }

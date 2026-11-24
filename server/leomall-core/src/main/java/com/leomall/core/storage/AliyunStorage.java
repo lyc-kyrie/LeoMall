@@ -1,6 +1,7 @@
 package com.leomall.core.storage;
 
-import com.aliyun.oss.OSSClient;
+import com.aliyun.oss.OSS;
+import com.aliyun.oss.OSSClientBuilder;
 import com.aliyun.oss.model.ObjectMetadata;
 import com.aliyun.oss.model.PutObjectRequest;
 import com.aliyun.oss.model.PutObjectResult;
@@ -65,8 +66,9 @@ public class AliyunStorage implements Storage {
      *
      * @return ossClient
      */
-    private OSSClient getOSSClient() {
-        return new OSSClient(endpoint, accessKeyId, accessKeySecret);
+    private OSS getOSSClient() {
+        // 阶段2A：OSS SDK 3.x 推荐 Builder 构造（旧 OSSClient 构造器已废弃）
+        return new OSSClientBuilder().build(endpoint, accessKeyId, accessKeySecret);
     }
 
     private String getBaseUrl() {

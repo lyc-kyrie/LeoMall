@@ -36,9 +36,16 @@ const user = {
       const username = userInfo.username.trim()
       return new Promise((resolve, reject) => {
         loginByUsername(username, userInfo.password, userInfo.code).then(response => {
-          const token = response.data.data.token
+          const data = response.data.data
+          const token = data.token
           commit('SET_TOKEN', token)
           setToken(token)
+          // P0-3：初始弱口令登录后强制修改密码（路由守卫拦截）
+          if (data.mustChangePassword) {
+            sessionStorage.setItem('mustChangePassword', '1')
+          } else {
+            sessionStorage.removeItem('mustChangePassword')
+          }
           resolve()
         }).catch(error => {
           reject(error)
@@ -76,6 +83,7 @@ const user = {
           commit('SET_ROLES', [])
           commit('SET_PERMS', [])
           removeToken()
+          sessionStorage.removeItem('mustChangePassword')
           resetRouter()
 
           // reset visited views and cached views
@@ -95,6 +103,7 @@ const user = {
         commit('SET_TOKEN', '')
         commit('SET_ROLES', [])
         removeToken()
+        sessionStorage.removeItem('mustChangePassword')
         resolve()
       })
     },

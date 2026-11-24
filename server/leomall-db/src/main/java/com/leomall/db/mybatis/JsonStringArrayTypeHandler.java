@@ -1,6 +1,8 @@
 package com.leomall.db.mybatis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;
 
@@ -14,6 +16,7 @@ import java.sql.SQLException;
  */
 public class JsonStringArrayTypeHandler extends BaseTypeHandler<String[]> {
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final Log logger = LogFactory.getLog(JsonStringArrayTypeHandler.class);
 
     @Override
     public void setNonNullParameter(PreparedStatement ps, int i, String[] parameter, JdbcType jdbcType) throws SQLException {
@@ -39,7 +42,7 @@ public class JsonStringArrayTypeHandler extends BaseTypeHandler<String[]> {
         try {
             return mapper.writeValueAsString(params);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("String[] JSON 序列化失败", e);
         }
         return "[]";
     }

@@ -1,45 +1,38 @@
 package com.leomall.admin.config;
 
-import com.github.xiaoymin.swaggerbootstrapui.annotations.EnableSwaggerBootstrapUI;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import org.springdoc.core.GroupedOpenApi;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import springfox.documentation.builders.ApiInfoBuilder;
-import springfox.documentation.builders.PathSelectors;
-import springfox.documentation.builders.RequestHandlerSelectors;
-import springfox.documentation.service.ApiInfo;
-import springfox.documentation.spi.DocumentationType;
-import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger2.annotations.EnableSwagger2;
+import org.springframework.context.annotation.Primary;
 
 /**
- * swagger在线文档配置<br>
- * 项目启动后可通过地址：http://host:ip/swagger-ui.html 查看在线文档
+ * 阶段2A：springfox → springdoc-openapi 1.x（springfox 与 Boot 2.6+ 不兼容且已停维）。
+ * 在线文档：http://host:port/swagger-ui.html（分组 admin/wx）。
  *
- * @version 2018-07-24
+ * P2-6 开关语义保留但更名：生产设 SWAGGER_ENABLED=false（即 springdoc.api-docs.enabled=false）
+ * 时，自动配置与本分组 Bean 全部关闭，/v3/api-docs 与 swagger-ui 不再暴露。
  */
-
 @Configuration
-@EnableSwagger2
-@EnableSwaggerBootstrapUI
+@ConditionalOnProperty(name = "springdoc.api-docs.enabled", havingValue = "true", matchIfMissing = true)
 public class AdminSwagger2Configuration {
-    @Bean
-    public Docket adminDocket() {
 
-        return new Docket(DocumentationType.SWAGGER_2)
-                .groupName("admin")
-                .apiInfo(adminApiInfo())
-                .select()
-                .apis(RequestHandlerSelectors.basePackage("com.leomall.admin.web"))
-                .paths(PathSelectors.any())
+    @Bean
+    public GroupedOpenApi adminApi() {
+        return GroupedOpenApi.builder()
+                .group("admin")
+                .packagesToScan("com.leomall.admin.web")
                 .build();
     }
 
-    private ApiInfo adminApiInfo() {
-        return new ApiInfoBuilder()
+    @Bean
+    @Primary // all-in-one 部署时与 wx 模块的 OpenAPI Bean 共存，以 admin 为准
+    public OpenAPI adminOpenAPI() {
+        return new OpenAPI().info(new Info()
                 .title("leomall-admin API")
                 .description("leomall管理后台API")
-                .version("1.0")
-                .build();
+                .version("1.0"));
     }
 }

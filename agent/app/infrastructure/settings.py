@@ -92,6 +92,9 @@ class Settings:
     queue_large_request_turns: int = 30  # 对话轮数 >= 此值走大请求队列
     # ---- leomall 集成（新增项一律带默认值，避免打断测试里手工构造的 Settings）----
     catalog_snapshot_path: Path = PROJECT_ROOT / "data" / "leomall_catalog.json"
+    # P2-11：商品快照定时热加载间隔（秒），0 = 关闭。改价/上下架后重跑导出脚本，
+    # API 进程会在下个周期自动 reload，无需重启（worker 进程仍需重启或自行 reload）。
+    catalog_refresh_seconds: int = 300
     internal_api_token: str = field(default="", repr=False)  # 空 = 不校验（仅限本机回环，生产必须配置）
     host: str = "127.0.0.1"  # 只监听回环，Java BFF 走内网调用
     local_fallback: bool = False  # 无 LLM 密钥时用确定性关键词推荐，保证链路可跑通
@@ -178,6 +181,7 @@ def load_settings() -> Settings:
         catalog_snapshot_path=Path(
             os.getenv("LEOMALL_CATALOG_PATH", str(data_dir / "leomall_catalog.json")),
         ),
+        catalog_refresh_seconds=int(os.getenv("CATALOG_REFRESH_SECONDS", "300")),
         internal_api_token=os.getenv("INTERNAL_API_TOKEN", ""),
         host=os.getenv("HOST", "127.0.0.1"),
         local_fallback=local_fallback,

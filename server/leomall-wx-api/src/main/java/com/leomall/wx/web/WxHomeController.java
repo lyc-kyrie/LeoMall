@@ -144,7 +144,7 @@ public class WxHomeController {
             HomeCacheManager.loadData(HomeCacheManager.INDEX, entity);
         }
         catch (Exception e) {
-            e.printStackTrace();
+            logger.error("首页数据加载失败", e);
         }
 //        finally {
 //            executorService.shutdown();

@@ -1,8 +1,12 @@
 # LeoMall 云端单机编排（4C8G 推荐；2C4G 需按 README 调小内存）
 # 用法：在本目录准备好 .env 后
 #   docker compose up -d --build
-# 可选缓存（Redis 语义缓存/embedding 缓存）：
-#   docker compose --profile cache up -d --build   （并在 .env 设 REDIS_URL=redis://redis:6379/0）
+# 阶段1（Redis 共享状态，多实例/削峰前置）：
+#   docker compose --profile cache up -d --build
+#   并在 .env 设 LEOMALL_REDIS_ENABLED=true、REDIS_URL=redis://redis:6379/0
+# 队列削峰（Agent 意图入队 + worker 消费，需同时启用 cache）：
+#   docker compose --profile cache --profile queue up -d --build
+#   并在 .env 设 QUEUE_ENABLED=1
 #
 # 端口暴露原则：只有 nginx 的 80 对外；MySQL/后端/Agent/Redis 全部走内部网络。
 services:
@@ -38,8 +42,22 @@ services:
       # 环境变量优先级最高，直接覆盖 jar 内 application-db.yml 的 localhost 连接串
       SPRING_DATASOURCE_DRUID_URL: jdbc:mysql://mysql:3306/leomall?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&verifyServerCertificate=false&useSSL=false
       SPRING_DATASOURCE_DRUID_PASSWORD: ${MYSQL_APP_PASSWORD:-leomall123456}
+      # P0-1：用户端 JWT 签名密钥，必填（>=32 字符强随机串），缺失则后端拒绝启动
+      LEOMALL_JWT_SECRET: ${LEOMALL_JWT_SECRET:?请在 .env 设置 LEOMALL_JWT_SECRET}
       # 与 agent 的 INTERNAL_API_TOKEN 保持一致（application-wx.yml 已支持该环境变量）
       LEOMALL_AGENT_INTERNAL_TOKEN: ${INTERNAL_API_TOKEN:?请在 .env 设置 INTERNAL_API_TOKEN}
+      # P1-7：第三方凭据经环境变量注入（不再写入 git 仓库）；不用对应功能可留空
+      LEOMALL_WX_APP_SECRET: ${LEOMALL_WX_APP_SECRET:-}
+      LEOMALL_COS_SECRET_ID: ${LEOMALL_COS_SECRET_ID:-}
+      LEOMALL_COS_SECRET_KEY: ${LEOMALL_COS_SECRET_KEY:-}
+      # 阶段1：Redis 共享状态（验证码/锁定/去重/领券锁/聊天限流/管理端会话）。
+      # 启用 --profile cache 时在 .env 设 LEOMALL_REDIS_ENABLED=true；
+      # false（默认）= 单实例内存态，不连接 Redis。
+      LEOMALL_REDIS_ENABLED: ${LEOMALL_REDIS_ENABLED:-false}
+      LEOMALL_REDIS_HOST: ${LEOMALL_REDIS_HOST:-redis}
+      LEOMALL_REDIS_PORT: ${LEOMALL_REDIS_PORT:-6379}
+      LEOMALL_REDIS_PASSWORD: ${LEOMALL_REDIS_PASSWORD:-}
+      LEOMALL_REDIS_DB: ${LEOMALL_REDIS_DB:-0}
     # 命令行参数优先级最高：Agent 地址指向容器网络；商品图片地址指向公网入口
     command:
       - --leomall.agent.base-url=http://agent:8000
@@ -78,7 +96,10 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-v4}
       # 不配 REDIS_URL = 无缓存无队列，意图在 API 进程内直跑（单机推荐形态）
       REDIS_URL: ${REDIS_URL:-}
-      QUEUE_ENABLED: "0"
+      # 队列削峰：--profile queue 启动 worker 后在 .env 设 QUEUE_ENABLED=1
+      QUEUE_ENABLED: ${QUEUE_ENABLED:-0}
+      # 熔断状态跨实例共享（需 REDIS_URL）
+      BREAKER_SHARED: ${BREAKER_SHARED:-0}
     volumes:
       - agent-data:/app/data
       # 商品快照：由本地 package.ps1 导出后随包上传；改价/上下架后替换此文件并重启 agent
@@ -118,6 +139,35 @@ services:
       timeout: 3s
       retries: 10
     mem_limit: 256m
+    restart: unless-stopped
+
+  # 阶段1：Agent 意图消费进程（同镜像不同命令）。
+  # 启用：docker compose --profile cache --profile queue up -d --build，
+  # 并在 .env 设 REDIS_URL=redis://redis:6379/0、QUEUE_ENABLED=1。
+  # 削峰实质：WORKER_CONCURRENCY 限住同时在跑的 Agent 轮数。
+  agent-worker:
+    build:
+      context: ./agent
+    container_name: leomall-agent-worker
+    profiles: ["queue"]
+    command: ["python", "-m", "app.worker"]
+    environment:
+      TZ: Asia/Shanghai
+      DATA_DIR: /app/data
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
+      LOCAL_FALLBACK: ${LOCAL_FALLBACK:-1}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-v4}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      QUEUE_ENABLED: "1"
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+    volumes:
+      - agent-data:/app/data
+      - ./agent-data/leomall_catalog.json:/app/data/leomall_catalog.json:ro
+    mem_limit: 1g
     restart: unless-stopped
 
 volumes:

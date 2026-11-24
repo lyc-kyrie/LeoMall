@@ -5,6 +5,8 @@ import type { TradeEvent } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
 const WS_BASE = API_BASE.replace(/^http/, "ws");
+// P0-6：Agent 全端点要求内部 token（与 INTERNAL_API_TOKEN 一致）
+const INTERNAL_TOKEN = import.meta.env.VITE_INTERNAL_TOKEN ?? "";
 
 function loadOrCreate(key: string, prefix: string): string {
   const existing = localStorage.getItem(key);
@@ -44,7 +46,7 @@ export default function App() {
           ws.close();
           return;
         }
-        ws.send(JSON.stringify({ shopping_session_id: sessionId }));
+        ws.send(JSON.stringify({ shopping_session_id: sessionId, internal_token: INTERNAL_TOKEN }));
         setConnected(true);
       };
       ws.onclose = () => {
@@ -85,7 +87,7 @@ export default function App() {
     try {
       await fetch(`${API_BASE}/commerce/intents`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Internal-Token": INTERNAL_TOKEN },
         body: JSON.stringify({
           shopping_session_id: sessionId,
           buyer_id: buyerId,

@@ -86,6 +86,24 @@ public class LeomallCouponUserService {
         return couponUserMapper.updateByPrimaryKeySelective(couponUser);
     }
 
+    /**
+     * P0-2：原子核销优惠券。
+     * 仅当「券属于该用户 + 未删除 + 仍可用」时才置为已用，返回影响行数；
+     * 调用方（下单事务）在返回 0 时回滚整单，杜绝并发复用与越权核销。
+     */
+    public int markUsed(Integer userId, Integer id, Integer orderId) {
+        LeomallCouponUser record = new LeomallCouponUser();
+        record.setStatus(CouponUserConstant.STATUS_USED);
+        record.setUsedTime(LocalDateTime.now());
+        record.setOrderId(orderId);
+        record.setUpdateTime(LocalDateTime.now());
+
+        LeomallCouponUserExample example = new LeomallCouponUserExample();
+        example.or().andIdEqualTo(id).andUserIdEqualTo(userId)
+                .andStatusEqualTo(CouponUserConstant.STATUS_USABLE).andDeletedEqualTo(false);
+        return couponUserMapper.updateByExampleSelective(record, example);
+    }
+
     public List<LeomallCouponUser> queryExpired() {
         LeomallCouponUserExample example = new LeomallCouponUserExample();
         example.or().andStatusEqualTo(CouponUserConstant.STATUS_USABLE).andEndTimeLessThan(LocalDateTime.now()).andDeletedEqualTo(false);

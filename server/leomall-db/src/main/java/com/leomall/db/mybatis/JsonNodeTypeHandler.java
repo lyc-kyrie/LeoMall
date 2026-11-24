@@ -3,6 +3,8 @@ package com.leomall.db.mybatis;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.JdbcType;
 
@@ -17,6 +19,7 @@ import java.sql.SQLException;
  */
 public class JsonNodeTypeHandler extends BaseTypeHandler<com.fasterxml.jackson.databind.JsonNode> {
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final Log logger = LogFactory.getLog(JsonNodeTypeHandler.class);
 
 
     @Override
@@ -25,7 +28,7 @@ public class JsonNodeTypeHandler extends BaseTypeHandler<com.fasterxml.jackson.d
         try {
             str = mapper.writeValueAsString(parameter);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            logger.error("JSON 字段序列化/反序列化失败", e);
             str = "{}";
         }
         ps.setString(i, str);
@@ -41,7 +44,7 @@ public class JsonNodeTypeHandler extends BaseTypeHandler<com.fasterxml.jackson.d
             JsonNode jsonNode = mapper.readTree(jsonSource);
             return jsonNode;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("JSON 字段序列化/反序列化失败", e);
         }
         return null;
     }
@@ -56,7 +59,7 @@ public class JsonNodeTypeHandler extends BaseTypeHandler<com.fasterxml.jackson.d
             JsonNode jsonNode = mapper.readTree(jsonSource);
             return jsonNode;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("JSON 字段序列化/反序列化失败", e);
         }
         return null;
 
@@ -72,7 +75,7 @@ public class JsonNodeTypeHandler extends BaseTypeHandler<com.fasterxml.jackson.d
             JsonNode jsonNode = mapper.readTree(jsonSource);
             return jsonNode;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("JSON 字段序列化/反序列化失败", e);
         }
         return null;
     }

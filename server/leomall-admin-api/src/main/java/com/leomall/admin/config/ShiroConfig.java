@@ -8,10 +8,15 @@ import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
 import com.leomall.admin.shiro.AdminAuthorizingRealm;
 import com.leomall.admin.shiro.AdminWebSessionManager;
+import com.leomall.admin.shiro.RedisSessionDAO;
 import org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.data.redis.core.RedisTemplate;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -44,17 +49,34 @@ public class ShiroConfig {
         return shiroFilterFactoryBean;
     }
 
+    /**
+     * 阶段1：leomall.redis.enabled=true 时会话存 Redis（跨实例共享，
+     * kaptcha 与登录请求落到不同实例也能命中同一会话）；否则保持内存会话。
+     */
     @Bean
-    public SessionManager sessionManager() {
-
-        return new AdminWebSessionManager();
+    @ConditionalOnProperty(name = "leomall.redis.enabled", havingValue = "true")
+    public RedisSessionDAO redisSessionDAO(
+            @Qualifier("shiroSessionRedisTemplate") RedisTemplate<String, Object> shiroSessionRedisTemplate) {
+        return new RedisSessionDAO(shiroSessionRedisTemplate);
     }
 
     @Bean
-    public DefaultWebSecurityManager defaultWebSecurityManager() {
+    public SessionManager sessionManager(ObjectProvider<RedisSessionDAO> redisSessionDAOProvider) {
+        AdminWebSessionManager sessionManager = new AdminWebSessionManager();
+        RedisSessionDAO redisSessionDAO = redisSessionDAOProvider.getIfAvailable();
+        if (redisSessionDAO != null) {
+            sessionManager.setSessionDAO(redisSessionDAO);
+            // 过期由 Redis TTL 处理，关闭 Shiro 定时校验扫描
+            sessionManager.setSessionValidationSchedulerEnabled(false);
+        }
+        return sessionManager;
+    }
+
+    @Bean
+    public DefaultWebSecurityManager defaultWebSecurityManager(SessionManager sessionManager) {
         DefaultWebSecurityManager securityManager = new DefaultWebSecurityManager();
         securityManager.setRealm(realm());
-        securityManager.setSessionManager(sessionManager());
+        securityManager.setSessionManager(sessionManager);
         return securityManager;
     }
 

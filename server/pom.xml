@@ -9,14 +9,17 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.1.5.RELEASE</version>
+        <!-- 阶段2A：2.1.5 → 2.7.18（Java8 最后支持版，javax 仍可用）。
+             下一步阶段2B：Java17 + Boot3.x（javax→jakarta）+ Spring Security。 -->
+        <version>2.7.18</version>
         <relativePath/>
     </parent>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>1.8</java.version>
-        <maven.test.skip>true</maven.test.skip>
+        <!-- P3-2：移除全局 maven.test.skip，CI mvn verify 真正执行测试。
+             环境依赖型遗留集成测试由 surefire excludes 显式排除（见 build）。 -->
     </properties>
 
     <modules>
@@ -56,55 +59,52 @@
                 <version>${project.version}</version>
             </dependency>
 
-            <!-- Spring Boot Mybatis 依赖 -->
+            <!-- Spring Boot Mybatis 依赖（阶段2A：与 Boot 2.7 对齐） -->
             <dependency>
                 <groupId>org.mybatis.spring.boot</groupId>
                 <artifactId>mybatis-spring-boot-starter</artifactId>
-                <version>1.3.2</version>
+                <version>2.3.2</version>
             </dependency>
 
             <!-- Spring Boot pagehelper 依赖 -->
             <dependency>
                 <groupId>com.github.pagehelper</groupId>
                 <artifactId>pagehelper-spring-boot-starter</artifactId>
-                <version>1.2.5</version>
+                <version>1.4.7</version>
             </dependency>
 
             <dependency>
                 <groupId>org.apache.shiro</groupId>
                 <artifactId>shiro-spring-boot-web-starter</artifactId>
-                <version>1.6.0</version>
+                <!-- P0-5：1.6.0 存在 CVE-2020-17523 / CVE-2023-34478 认证绕过，升级到 1.x 最新 -->
+                <version>1.13.0</version>
             </dependency>
 
-            <dependency>
-                <groupId>org.hibernate.validator</groupId>
-                <artifactId>hibernate-validator</artifactId>
-                <version>6.2.0.Final</version>
-            </dependency>
+            <!-- hibernate-validator 版本交由 Boot BOM 管理（2.7.18 → 6.2.5.Final） -->
 
-            <!-- MySQL 连接驱动依赖 -->
+            <!-- MySQL 连接驱动（阶段2A：GA 坐标已变更为 com.mysql:mysql-connector-j） -->
             <dependency>
-                <groupId>mysql</groupId>
-                <artifactId>mysql-connector-java</artifactId>
-                <version>8.0.28</version>
+                <groupId>com.mysql</groupId>
+                <artifactId>mysql-connector-j</artifactId>
+                <version>8.4.0</version>
             </dependency>
 
             <dependency>
                 <groupId>com.alibaba</groupId>
                 <artifactId>druid-spring-boot-starter</artifactId>
-                <version>1.2.1</version>
+                <version>1.2.23</version>
             </dependency>
 
             <dependency>
                 <groupId>com.github.binarywang</groupId>
                 <artifactId>weixin-java-pay</artifactId>
-                <version>4.1.0</version>
+                <version>4.6.0</version>
             </dependency>
 
             <dependency>
                 <groupId>com.github.binarywang</groupId>
                 <artifactId>weixin-java-miniapp</artifactId>
-                <version>4.1.0</version>
+                <version>4.6.0</version>
             </dependency>
 
             <dependency>
@@ -122,38 +122,26 @@
             <dependency>
                 <groupId>com.aliyun.oss</groupId>
                 <artifactId>aliyun-sdk-oss</artifactId>
-                <version>2.5.0</version>
+                <!-- 阶段2A：2.5.0 过旧（TLS/依赖问题），升 3.17.x -->
+                <version>3.17.4</version>
             </dependency>
 
             <dependency>
                 <groupId>com.qiniu</groupId>
                 <artifactId>qiniu-java-sdk</artifactId>
-                <version>[7.2.0, 7.2.99]</version>
+                <!-- P3-3：锁定精确版本，消除区间版本导致的不可复现构建 -->
+                <version>7.2.29</version>
             </dependency>
 
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-json</artifactId>
-                <version>2.1.5.RELEASE</version>
-            </dependency>
+            <!-- starter-json / starter-mail 版本交由 Boot BOM 管理，不再硬编码 2.1.5 -->
 
+            <!-- 阶段2A：springfox 与 Boot 2.6+ 不兼容且已停止维护，迁移 springdoc-openapi 1.x
+                 （javax 版；阶段2B 升 springdoc 2.x）。UI 随包提供 /swagger-ui.html。 -->
             <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-mail</artifactId>
-                <version>2.1.5.RELEASE</version>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-ui</artifactId>
+                <version>1.7.0</version>
             </dependency>
-
-            <dependency>
-		       <groupId>io.springfox</groupId>
-			   <artifactId>springfox-swagger2</artifactId>
-			   <version>2.9.2</version>
-		   </dependency>
-		
-		<dependency>
-			  <groupId>io.springfox</groupId>
-			  <artifactId>springfox-swagger-ui</artifactId>
-			  <version>2.10.0</version>
-		</dependency>
 
         <dependency>
             <groupId>com.github.penggle</groupId>
@@ -161,22 +149,24 @@
             <version>2.3.2</version>
         </dependency>
 
-		<!--引入ui包-->
-		<dependency>
-	 		 <groupId>com.github.xiaoymin</groupId>
-	 		 <artifactId>swagger-bootstrap-ui</artifactId>
-	 		<version>1.9.6</version>
-		</dependency>
 		<dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>32.0.0-jre</version>
+            <version>33.4.8-jre</version>
         </dependency>
+
+            <!-- P2-9：富文本服务端白名单消毒 -->
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>1.17.2</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.auth0</groupId>
                 <artifactId>java-jwt</artifactId>
-                <version>3.4.1</version>
+                <!-- P0-1：3.4.1 过旧，升级 4.x（当前用法 API 兼容） -->
+                <version>4.4.0</version>
             </dependency>
 
             <dependency>
@@ -188,13 +178,6 @@
     </dependencyManagement>
 
     <dependencies>
-
-        <!-- 热部署模块 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
-            <optional>true</optional>
-        </dependency>
 
         <!-- 测试模块 -->
         <dependency>
@@ -208,37 +191,69 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
+        <!-- P3-9：移除 powermock 1.6.6 / mockito 1.10.19（与 starter-test 管理的
+             mockito 2.x 冲突且极旧）；唯一使用 PowerMock 的 BCryptTest 已改为纯 JUnit。
+             mockito5 + JUnit5 迁移随阶段 2 Boot 升级进行。 -->
+        <!-- 阶段2A：Boot 2.7 的 starter-test 默认只带 JUnit5；现存测试为 JUnit4，
+             加 vintage 引擎让其在 JUnit Platform 上继续运行（阶段2B 迁 JUnit5 后移除）。 -->
         <dependency>
-            <groupId>org.powermock</groupId>
-            <artifactId>powermock-api-mockito</artifactId>
-            <version>1.6.6</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.powermock</groupId>
-            <artifactId>powermock-module-junit4</artifactId>
-            <version>1.6.6</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <version>1.10.19</version>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
+    <profiles>
+        <!-- P3-4：devtools 仅在显式 -Pdevtools 时引入，不再进入所有模块与生产制品 -->
+        <profile>
+            <id>devtools</id>
+            <dependencies>
+                <dependency>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-devtools</artifactId>
+                    <optional>true</optional>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
+
 
     <build>
         <plugins>
+            <!-- 阶段2A：compiler 插件版本交由 Boot 父 POM 管理（3.10.1），
+                 source/target 由 java.version=1.8 属性决定 -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version>
+                <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <!-- P3-2：以下为 litemall 遗留的环境依赖型集成测试（需 MySQL/
+                         外部服务/真实凭据），CI 不运行；本地按需运行：
+                         mvn test -Dtest=DbTest（-Dtest 会覆盖 excludes）。
+                         纯单元测试与新增安全回归测试正常执行。 -->
+                    <excludes>
+                        <exclude>**/AdminConfigTest.java</exclude>
+                        <exclude>**/BcryptTest.java</exclude>
+                        <exclude>**/CreateShareImageTest.java</exclude>
+                        <exclude>**/DbTest.java</exclude>
+                        <exclude>**/PermissionTest.java</exclude>
+                        <exclude>**/AllinoneConfigTest.java</exclude>
+                        <exclude>**/AliyunStorageTest.java</exclude>
+                        <exclude>**/AsyncTest.java</exclude>
+                        <exclude>**/CoreConfigTest.java</exclude>
+                        <exclude>**/ExpressTest.java</exclude>
+                        <exclude>**/LocalStorageTest.java</exclude>
+                        <exclude>**/MailTest.java</exclude>
+                        <exclude>**/QiniuStorageTest.java</exclude>
+                        <exclude>**/SmsTest.java</exclude>
+                        <exclude>**/TaskTest.java</exclude>
+                        <exclude>**/TencentStorageTest.java</exclude>
+                        <exclude>**/DbConfigTest.java</exclude>
+                        <exclude>**/DbUtilTest.java</exclude>
+                        <exclude>**/MapperReturnTest.java</exclude>
+                        <exclude>**/StatMapperTest.java</exclude>
+                        <exclude>**/StockTest.java</exclude>
+                        <exclude>**/WxConfigTest.java</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
         </plugins>

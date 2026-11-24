@@ -1,6 +1,4 @@
 package com.leomall.admin.web;
-
-import io.swagger.models.auth.In;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.shiro.SecurityUtils;

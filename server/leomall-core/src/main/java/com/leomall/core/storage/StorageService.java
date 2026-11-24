@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.List;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
@@ -18,6 +20,10 @@ public class StorageService {
     private Storage storage;
     @Autowired
     private LeomallStorageService leomallStorageService;
+
+    /** P0-4：允许上传的图片后缀白名单（小写，含点） */
+    private static final List<String> ALLOWED_SUFFIXES =
+            Arrays.asList(".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp");
 
     public String getActive() {
         return active;
@@ -60,8 +66,22 @@ public class StorageService {
     }
 
     private String generateKey(String originalFilename) {
+        // P0-4：后缀白名单 + 路径分隔符防御。
+        // 原实现直接拼接原始后缀且无白名单，可上传 html/svg/js 等任意类型。
+        if (originalFilename == null) {
+            throw new IllegalArgumentException("文件名不能为空");
+        }
         int index = originalFilename.lastIndexOf('.');
-        String suffix = originalFilename.substring(index);
+        if (index < 0 || index == originalFilename.length() - 1) {
+            throw new IllegalArgumentException("文件必须包含合法后缀");
+        }
+        String suffix = originalFilename.substring(index).toLowerCase();
+        if (suffix.contains("/") || suffix.contains("\\") || suffix.contains("..")) {
+            throw new IllegalArgumentException("非法文件名");
+        }
+        if (!ALLOWED_SUFFIXES.contains(suffix)) {
+            throw new IllegalArgumentException("仅支持图片文件（jpg/jpeg/png/gif/webp/bmp）");
+        }
 
         String key = null;
         LeomallStorage storageInfo = null;

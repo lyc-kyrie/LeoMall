@@ -13,9 +13,11 @@ import com.leomall.db.domain.LeomallGrouponRules;
 import com.leomall.db.service.*;
 import com.leomall.db.util.CouponConstant;
 import com.leomall.wx.annotation.LoginUser;
+import com.leomall.wx.service.CouponClaimLock;
 import com.leomall.wx.vo.CouponVo;
 import com.leomall.wx.util.WxResponseCode;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,6 +45,10 @@ public class WxCouponController {
     private LeomallCartService cartService;
     @Autowired
     private CouponVerifyService couponVerifyService;
+    @Autowired
+    private CouponClaimLock couponClaimLock;
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     /**
      * 优惠券列表
@@ -189,59 +195,71 @@ public class WxCouponController {
             return ResponseUtil.badArgumentValue();
         }
 
-        // 当前已领取数量和总数量比较
-        Integer total = coupon.getTotal();
-        Integer totalCoupons = couponUserService.countCoupon(couponId);
-        if((total != 0) && (totalCoupons >= total)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已领完");
+        // P1-3 / 阶段1：「用户+券」分布式锁（Redis 启用后跨实例），
+        // 锁内事务复查限领/总量后插入（事务在锁释放前提交）。
+        CouponClaimLock.Handle lock = couponClaimLock.tryLock(userId, couponId);
+        if (lock == null) {
+            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "操作过于频繁，请稍后重试");
         }
+        try {
+            return transactionTemplate.execute(txStatus -> {
+                // 当前已领取数量和总数量比较
+                Integer total = coupon.getTotal();
+                Integer totalCoupons = couponUserService.countCoupon(couponId);
+                if((total != 0) && (totalCoupons >= total)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已领完");
+                }
 
-        // 当前用户已领取数量和用户限领数量比较
-        Integer limit = coupon.getLimit().intValue();
-        Integer userCounpons = couponUserService.countUserAndCoupon(userId, couponId);
-        if((limit != 0) && (userCounpons >= limit)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已经领取过");
-        }
+                // 当前用户已领取数量和用户限领数量比较
+                Integer limit = coupon.getLimit().intValue();
+                Integer userCounpons = couponUserService.countUserAndCoupon(userId, couponId);
+                if((limit != 0) && (userCounpons >= limit)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已经领取过");
+                }
 
-        // 优惠券分发类型
-        // 例如注册赠券类型的优惠券不能领取
-        Short type = coupon.getType();
-        if(type.equals(CouponConstant.TYPE_REGISTER)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "新用户优惠券自动发送");
-        }
-        else if(type.equals(CouponConstant.TYPE_CODE)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券只能兑换");
-        }
-        else if(!type.equals(CouponConstant.TYPE_COMMON)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券类型不支持");
-        }
+                // 优惠券分发类型
+                // 例如注册赠券类型的优惠券不能领取
+                Short type = coupon.getType();
+                if(type.equals(CouponConstant.TYPE_REGISTER)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "新用户优惠券自动发送");
+                }
+                else if(type.equals(CouponConstant.TYPE_CODE)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券只能兑换");
+                }
+                else if(!type.equals(CouponConstant.TYPE_COMMON)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券类型不支持");
+                }
 
-        // 优惠券状态，已下架或者过期不能领取
-        Short status = coupon.getStatus();
-        if(status.equals(CouponConstant.STATUS_OUT)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已领完");
-        }
-        else if(status.equals(CouponConstant.STATUS_EXPIRED)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券已经过期");
-        }
+                // 优惠券状态，已下架或者过期不能领取
+                Short status = coupon.getStatus();
+                if(status.equals(CouponConstant.STATUS_OUT)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已领完");
+                }
+                else if(status.equals(CouponConstant.STATUS_EXPIRED)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券已经过期");
+                }
 
-        // 用户领券记录
-        LeomallCouponUser couponUser = new LeomallCouponUser();
-        couponUser.setCouponId(couponId);
-        couponUser.setUserId(userId);
-        Short timeType = coupon.getTimeType();
-        if (timeType.equals(CouponConstant.TIME_TYPE_TIME)) {
-            couponUser.setStartTime(coupon.getStartTime());
-            couponUser.setEndTime(coupon.getEndTime());
-        }
-        else{
-            LocalDateTime now = LocalDateTime.now();
-            couponUser.setStartTime(now);
-            couponUser.setEndTime(now.plusDays(coupon.getDays()));
-        }
-        couponUserService.add(couponUser);
+                // 用户领券记录
+                LeomallCouponUser couponUser = new LeomallCouponUser();
+                couponUser.setCouponId(couponId);
+                couponUser.setUserId(userId);
+                Short timeType = coupon.getTimeType();
+                if (timeType.equals(CouponConstant.TIME_TYPE_TIME)) {
+                    couponUser.setStartTime(coupon.getStartTime());
+                    couponUser.setEndTime(coupon.getEndTime());
+                }
+                else{
+                    LocalDateTime now = LocalDateTime.now();
+                    couponUser.setStartTime(now);
+                    couponUser.setEndTime(now.plusDays(coupon.getDays()));
+                }
+                couponUserService.add(couponUser);
 
-        return ResponseUtil.ok();
+                return ResponseUtil.ok();
+            });
+        } finally {
+            lock.close();
+        }
     }
 
     /**
@@ -268,58 +286,69 @@ public class WxCouponController {
         }
         Integer couponId = coupon.getId();
 
-        // 当前已领取数量和总数量比较
-        Integer total = coupon.getTotal();
-        Integer totalCoupons = couponUserService.countCoupon(couponId);
-        if((total != 0) && (totalCoupons >= total)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已兑换");
+        // P1-3 / 阶段1：同 receive，分布式锁内事务复查，消除并发兑换竞态
+        CouponClaimLock.Handle lock = couponClaimLock.tryLock(userId, couponId);
+        if (lock == null) {
+            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "操作过于频繁，请稍后重试");
         }
+        try {
+            return transactionTemplate.execute(txStatus -> {
+                // 当前已领取数量和总数量比较
+                Integer total = coupon.getTotal();
+                Integer totalCoupons = couponUserService.countCoupon(couponId);
+                if((total != 0) && (totalCoupons >= total)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已兑换");
+                }
 
-        // 当前用户已领取数量和用户限领数量比较
-        Integer limit = coupon.getLimit().intValue();
-        Integer userCounpons = couponUserService.countUserAndCoupon(userId, couponId);
-        if((limit != 0) && (userCounpons >= limit)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已兑换");
-        }
+                // 当前用户已领取数量和用户限领数量比较
+                Integer limit = coupon.getLimit().intValue();
+                Integer userCounpons = couponUserService.countUserAndCoupon(userId, couponId);
+                if((limit != 0) && (userCounpons >= limit)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已兑换");
+                }
 
-        // 优惠券分发类型
-        // 例如注册赠券类型的优惠券不能领取
-        Short type = coupon.getType();
-        if(type.equals(CouponConstant.TYPE_REGISTER)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "新用户优惠券自动发送");
-        }
-        else if(type.equals(CouponConstant.TYPE_COMMON)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券只能领取，不能兑换");
-        }
-        else if(!type.equals(CouponConstant.TYPE_CODE)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券类型不支持");
-        }
+                // 优惠券分发类型
+                // 例如注册赠券类型的优惠券不能领取
+                Short type = coupon.getType();
+                if(type.equals(CouponConstant.TYPE_REGISTER)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "新用户优惠券自动发送");
+                }
+                else if(type.equals(CouponConstant.TYPE_COMMON)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券只能领取，不能兑换");
+                }
+                else if(!type.equals(CouponConstant.TYPE_CODE)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券类型不支持");
+                }
 
-        // 优惠券状态，已下架或者过期不能领取
-        Short status = coupon.getStatus();
-        if(status.equals(CouponConstant.STATUS_OUT)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已兑换");
-        }
-        else if(status.equals(CouponConstant.STATUS_EXPIRED)){
-            return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券已经过期");
-        }
+                // 优惠券状态，已下架或者过期不能领取
+                Short status = coupon.getStatus();
+                if(status.equals(CouponConstant.STATUS_OUT)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_EXCEED_LIMIT, "优惠券已兑换");
+                }
+                else if(status.equals(CouponConstant.STATUS_EXPIRED)){
+                    return ResponseUtil.fail(WxResponseCode.COUPON_RECEIVE_FAIL, "优惠券已经过期");
+                }
 
-        // 用户领券记录
-        LeomallCouponUser couponUser = new LeomallCouponUser();
-        couponUser.setCouponId(couponId);
-        couponUser.setUserId(userId);
-        Short timeType = coupon.getTimeType();
-        if (timeType.equals(CouponConstant.TIME_TYPE_TIME)) {
-            couponUser.setStartTime(coupon.getStartTime());
-            couponUser.setEndTime(coupon.getEndTime());
-        }
-        else{
-            LocalDateTime now = LocalDateTime.now();
-            couponUser.setStartTime(now);
-            couponUser.setEndTime(now.plusDays(coupon.getDays()));
-        }
-        couponUserService.add(couponUser);
+                // 用户领券记录
+                LeomallCouponUser couponUser = new LeomallCouponUser();
+                couponUser.setCouponId(couponId);
+                couponUser.setUserId(userId);
+                Short timeType = coupon.getTimeType();
+                if (timeType.equals(CouponConstant.TIME_TYPE_TIME)) {
+                    couponUser.setStartTime(coupon.getStartTime());
+                    couponUser.setEndTime(coupon.getEndTime());
+                }
+                else{
+                    LocalDateTime now = LocalDateTime.now();
+                    couponUser.setStartTime(now);
+                    couponUser.setEndTime(now.plusDays(coupon.getDays()));
+                }
+                couponUserService.add(couponUser);
 
-        return ResponseUtil.ok();
+                return ResponseUtil.ok();
+            });
+        } finally {
+            lock.close();
+        }
     }
 }

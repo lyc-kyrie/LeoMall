@@ -80,7 +80,12 @@ public class LocalStorage implements Storage {
     @Override
     public Resource loadAsResource(String filename) {
         try {
-            Path file = load(filename);
+            Path file = load(filename).normalize();
+            // P0-4：解析结果必须落在存储根目录内，防路径穿越读取
+            if (!file.startsWith(rootLocation.normalize())) {
+                logger.warn("拒绝越界存储访问: " + filename);
+                return null;
+            }
             Resource resource = new UrlResource(file.toUri());
             if (resource.exists() || resource.isReadable()) {
                 return resource;
@@ -95,7 +100,12 @@ public class LocalStorage implements Storage {
 
     @Override
     public void delete(String filename) {
-        Path file = load(filename);
+        Path file = load(filename).normalize();
+        // P0-4：解析结果必须落在存储根目录内，防路径穿越删除
+        if (!file.startsWith(rootLocation.normalize())) {
+            logger.warn("拒绝越界存储删除: " + filename);
+            return;
+        }
         try {
             Files.delete(file);
         } catch (IOException e) {

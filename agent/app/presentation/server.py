@@ -29,7 +29,7 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, Header, HTTPException, WebSocket
+from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
@@ -53,6 +53,43 @@ logger = logging.getLogger(__name__)
 _IDEMPOTENCY_TTL_SECONDS = 600
 # 轮数计数器存活时长：比幂等窗口长得多，让一整段会话都能被正确分类
 _TURN_COUNTER_TTL_SECONDS = 86400
+
+# P3-10：无 Redis 队列时同步直跑路径的进程内短窗口幂等。
+# 队列路径的幂等在 _enqueue（Redis SETNX）；同步路径此前完全没有保护，
+# 重复提交会重复执行 handle_intent（含下单等写操作）。这里用「会话+问句」
+# 指纹做结果缓存：窗口内已完成的重复请求直接返回原结果，不再执行；
+# 处理中的并发重复返回 409。单进程内存实现，多副本部署请启用 Redis 队列。
+_SYNC_IDEM_TTL_SECONDS = 30
+_sync_idem_lock = asyncio.Lock()
+_sync_idem_done: dict[str, tuple[float, dict]] = {}
+_sync_idem_pending: set[str] = set()
+
+
+def _intent_fingerprint(session_id: str, raw_query: str) -> str:
+    return hashlib.sha256(f"{session_id}\n{raw_query}".encode()).hexdigest()[:32]
+
+
+async def _sync_idem_begin(fp: str) -> tuple[bool, Optional[dict]]:
+    """返回 (是否命中缓存, 缓存结果)。未命中则登记为处理中，取得执行权。"""
+    now = time.monotonic()
+    async with _sync_idem_lock:
+        for key in [k for k, (exp, _) in _sync_idem_done.items() if exp <= now]:
+            _sync_idem_done.pop(key, None)
+        hit = _sync_idem_done.get(fp)
+        if hit is not None:
+            return True, hit[1]
+        if fp in _sync_idem_pending:
+            raise HTTPException(status_code=409, detail="相同请求正在处理中，请勿重复提交")
+        _sync_idem_pending.add(fp)
+    return False, None
+
+
+async def _sync_idem_finish(fp: str, result: Optional[dict]) -> None:
+    """成功则缓存结果供窗口内复用；失败则释放登记，允许调用方重试。"""
+    async with _sync_idem_lock:
+        _sync_idem_pending.discard(fp)
+        if result is not None:
+            _sync_idem_done[fp] = (time.monotonic() + _SYNC_IDEM_TTL_SECONDS, result)
 
 
 # ---- leomall 集成：内部鉴权 / 推荐结果提取 / 本地确定性降级 ----
@@ -198,6 +235,18 @@ async def _local_recommend(c: Container, raw_query: str) -> tuple[str, list[dict
 def build_app() -> FastAPI:
     state: dict = {}
 
+    def require_internal_token(
+        x_internal_token: Optional[str] = Header(default=None, alias="X-Internal-Token"),
+    ) -> None:
+        """P0-6：所有 HTTP 端点统一内部 token 校验（含异步/任务/订单端点）。
+
+        token 未配置时仅允许回环绑定（lifespan 启动自检保证）；配置后强制校验。
+        """
+        c = state.get("c")
+        expected = c.settings.internal_api_token if c else ""
+        if expected and x_internal_token != expected:
+            raise HTTPException(status_code=401, detail="内部 token 无效")
+
     async def _forward_remote_events(c: Container) -> None:
         """把其他进程（worker）广播的事件转发给本进程的 WS 订阅者。"""
         if c.backplane is None:
@@ -213,20 +262,41 @@ def build_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         c = await build_container()
+        # P0-6 启动自检：未配置内部 token 时只允许回环绑定，拒绝裸奔对外
+        if not c.settings.internal_api_token and c.settings.host not in ("127.0.0.1", "localhost", "::1"):
+            raise RuntimeError(
+                "INTERNAL_API_TOKEN 未配置且 HOST 非回环地址：拒绝启动。"
+                "请配置 INTERNAL_API_TOKEN，或将 HOST 绑定为 127.0.0.1"
+            )
         state["c"] = c
-        state["connections"] = ConnectionManager(c.bus)
+        state["connections"] = ConnectionManager(c.bus, lambda: c.settings.internal_api_token)
         await c.startup()
         if c.backplane is not None:
             # 跨进程事件转发：不开这个任务，worker 产生的流式事件到不了前端
             state["forwarder"] = asyncio.create_task(_forward_remote_events(c))
+
+        # P2-11：商品快照定时热加载——改价/上下架后重跑导出脚本即可生效，无需重启。
+        # 快照为空时 reload 保留原目录；向量索引重建仍走管理端手动触发。
+        async def _refresh_catalog() -> None:
+            while True:
+                await asyncio.sleep(c.settings.catalog_refresh_seconds)
+                try:
+                    count = c.product_repo.reload()
+                    logger.info("商品快照定时热加载完成：%d 件", count)
+                except Exception as err:  # noqa: BLE001
+                    logger.warning("商品快照热加载失败：%s", err)
+
+        if c.settings.catalog_refresh_seconds > 0:
+            state["catalog_refresher"] = asyncio.create_task(_refresh_catalog())
         try:
             yield
         finally:
-            forwarder = state.pop("forwarder", None)
-            if forwarder is not None:
-                forwarder.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await forwarder
+            for key in ("forwarder", "catalog_refresher"):
+                task = state.pop(key, None)
+                if task is not None:
+                    task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await task
             state.pop("c", None)
             await c.shutdown()
 
@@ -248,7 +318,8 @@ def build_app() -> FastAPI:
 
     @api.get("/health")
     async def health() -> dict:
-        """依赖连通性一并报出，避免"进程活着但存储已挂"被当成健康。"""
+        """P2-11：公开健康检查只暴露存活与依赖状态；
+        模型名/目录规模等内部信息移到需鉴权的 /health/detail。"""
         c = container()
         database = "disabled"
         if c.db_engine is not None:
@@ -263,33 +334,31 @@ def build_app() -> FastAPI:
         redis_state = "disabled"
         if c.cache.enabled:
             redis_state = "ok" if await c.cache.ping() else "error"
+        return {"status": "ok", "database": database, "redis": redis_state}
+
+    @api.get("/health/detail", dependencies=[Depends(require_internal_token)])
+    async def health_detail() -> dict:
+        """P2-11：内部运维详情，需内部 token。"""
+        c = container()
         return {
             "status": "ok",
             "model": c.settings.llm_model,
-            "database": database,
-            "redis": redis_state,
             "semantic_cache": c.semantic_cache.enabled,
             "queue": "enabled" if c.task_queue is not None else "disabled",
             "queue_depth": await c.task_queue.depth() if c.task_queue is not None else 0,
-            # leomall 集成可观测项
             "catalog_source": "leomall_snapshot",
             "catalog_count": c.product_repo.count,
+            "catalog_refresh_seconds": c.settings.catalog_refresh_seconds,
             "local_fallback": c.settings.local_fallback,
         }
 
-    @api.post("/commerce/intents", response_model=SubmitIntentResponse)
-    async def submit_intent(
-        body: SubmitIntentRequest,
-        x_internal_token: Optional[str] = Header(default=None, alias="X-Internal-Token"),
-    ) -> SubmitIntentResponse:
+    @api.post("/commerce/intents", response_model=SubmitIntentResponse,
+              dependencies=[Depends(require_internal_token)])
+    async def submit_intent(body: SubmitIntentRequest) -> SubmitIntentResponse:
         c = container()
 
-        # 内部服务鉴权：BFF 才持有共享密钥；服务本身只监听 127.0.0.1。
-        # buyer_id 由 BFF 从登录态注入，前端无法伪造；密钥为空时仅限本机开发。
-        expected = c.settings.internal_api_token
-        if expected and x_internal_token != expected:
-            raise HTTPException(status_code=401, detail="invalid internal token")
-
+        # 内部服务鉴权由 require_internal_token 统一处理（P0-6）。
+        # buyer_id 由 BFF 从登录态注入，前端无法伪造。
         session_id = body.shopping_session_id or f"session-{uuid.uuid4().hex[:8]}"
 
         # 无 LLM 密钥（或显式 LOCAL_FALLBACK=1）时走确定性推荐，保证链路可用
@@ -312,16 +381,28 @@ def build_app() -> FastAPI:
             raw_query=body.raw_query,
         )
         if c.task_queue is None:
-            final_text, hits = await _collect_hits(
-                c, session_id, c.orchestrator.handle_intent(intent),
-            )
-            return SubmitIntentResponse(
-                shopping_session_id=session_id,
-                final_text=final_text,
-                recommendations=_to_recommendations(hits),
-                model=c.settings.llm_model,
-                degraded=False,
-            )
+            # P3-10：同步直跑也要幂等——重复提交不再重复执行（含写操作）
+            fp = _intent_fingerprint(session_id, body.raw_query)
+            hit, cached = await _sync_idem_begin(fp)
+            if hit:
+                logger.info("同步幂等命中，复用已完成结果：session=%s", session_id)
+                return SubmitIntentResponse(**cached)
+            try:
+                final_text, hits = await _collect_hits(
+                    c, session_id, c.orchestrator.handle_intent(intent),
+                )
+                response = SubmitIntentResponse(
+                    shopping_session_id=session_id,
+                    final_text=final_text,
+                    recommendations=_to_recommendations(hits),
+                    model=c.settings.llm_model,
+                    degraded=False,
+                )
+                await _sync_idem_finish(fp, response.model_dump())
+                return response
+            except BaseException:
+                await _sync_idem_finish(fp, None)
+                raise
 
         task_id = await _enqueue(c, intent)
         final_text = await _await_result(c, task_id, session_id)
@@ -333,7 +414,7 @@ def build_app() -> FastAPI:
             model=c.settings.llm_model,
         )
 
-    @api.post("/commerce/intents/async")
+    @api.post("/commerce/intents/async", dependencies=[Depends(require_internal_token)])
     async def submit_intent_async(body: SubmitIntentRequest) -> dict:
         c = container()
         session_id = body.shopping_session_id or f"session-{uuid.uuid4().hex[:8]}"
@@ -349,7 +430,7 @@ def build_app() -> FastAPI:
         task_id = await _enqueue(c, intent)
         return {"shopping_session_id": session_id, "task_id": task_id, "state": "queued"}
 
-    @api.get("/commerce/tasks/{task_id}")
+    @api.get("/commerce/tasks/{task_id}", dependencies=[Depends(require_internal_token)])
     async def get_task(task_id: str) -> dict:
         c = container()
         if c.task_queue is None:
@@ -369,17 +450,19 @@ def build_app() -> FastAPI:
     async def commerce_events(websocket: WebSocket) -> None:
         await state["connections"].serve(websocket)
 
-    @api.get("/commerce/orders/{order_id}")
-    async def get_order(order_id: str) -> dict:
+    @api.get("/commerce/orders/{order_id}", dependencies=[Depends(require_internal_token)])
+    async def get_order(order_id: str, buyer_id: str) -> dict:
+        # P0-6：必须携带买家身份并校验归属，杜绝任意订单读取
         try:
-            return await container().query_order.execute(order_id)
+            return await container().query_order.execute(order_id, buyer_id=buyer_id)
         except ValueError as err:
             raise HTTPException(status_code=404, detail=str(err)) from err
 
-    @api.post("/commerce/orders/{order_id}/cancel")
-    async def cancel_order_endpoint(order_id: str, body: CancelOrderRequest) -> dict:
+    @api.post("/commerce/orders/{order_id}/cancel", dependencies=[Depends(require_internal_token)])
+    async def cancel_order_endpoint(order_id: str, body: CancelOrderRequest, buyer_id: str) -> dict:
+        # P0-6：必须携带买家身份并校验归属，杜绝任意订单取消
         try:
-            return await container().cancel_order.execute(order_id, body.reason)
+            return await container().cancel_order.execute(order_id, body.reason, buyer_id=buyer_id)
         except ValueError as err:
             raise HTTPException(status_code=400, detail=str(err)) from err
 
@@ -411,9 +494,7 @@ async def _enqueue(c: Container, intent: SubmitIntentInput) -> str:
     命中说明短时间内已提交过同样内容，直接复用原 task_id，不再入队一次。
     这一步对写操作（下单）尤其关键：重复消费等于重复下单。
     """
-    fingerprint = hashlib.sha256(
-        f"{intent.shopping_session_id}\n{intent.raw_query}".encode(),
-    ).hexdigest()[:32]
+    fingerprint = _intent_fingerprint(intent.shopping_session_id, intent.raw_query)
     idem_key = f"idem:{fingerprint}"
     task_id = f"task-{uuid.uuid4().hex[:12]}"
 

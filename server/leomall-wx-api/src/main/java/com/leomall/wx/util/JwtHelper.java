@@ -13,21 +13,45 @@ import com.auth0.jwt.exceptions.JWTCreationException;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 public class JwtHelper {
-	// 秘钥
-	static final String SECRET = "X-Leomall-Token";
+	private static final Log logger = LogFactory.getLog(JwtHelper.class);
+	// 秘钥：禁止硬编码。由 JwtSecretInitializer 在启动时从配置/环境变量
+	// LEOMALL_JWT_SECRET 注入（>=32 字符），未配置则拒绝启动。
+	// 更换密钥后，此前签发的所有 token 自动失效。
+	private static volatile String secret;
+
 	// 签名是有谁生成
 	static final String ISSUSER = "LEOMALL";
 	// 签名的主题
 	static final String SUBJECT = "this is leomall token";
 	// 签名的观众
 	static final String AUDIENCE = "MINIAPP";
-	
-	
+
+	/**
+	 * 启动时注入密钥。长度不足 32 字符视为不安全配置，直接拒绝。
+	 */
+	public static void configure(String secretValue) {
+		if (secretValue == null || secretValue.trim().length() < 32) {
+			throw new IllegalStateException(
+					"JWT 密钥未配置或长度不足 32 字符：请设置环境变量 LEOMALL_JWT_SECRET（强随机串），不允许使用默认值");
+		}
+		secret = secretValue.trim();
+	}
+
+	private static String secret() {
+		String s = secret;
+		if (s == null) {
+			throw new IllegalStateException("JWT 密钥未初始化：请设置环境变量 LEOMALL_JWT_SECRET");
+		}
+		return s;
+	}
+
 	public String createToken(Integer userId){
 		try {
-		    Algorithm algorithm = Algorithm.HMAC256(SECRET);
+		    Algorithm algorithm = Algorithm.HMAC256(secret());
 		    Map<String, Object> map = new HashMap<String, Object>();
 		    Date nowDate = new Date();
 		    // 过期时间：2小时
@@ -42,43 +66,47 @@ public class JwtHelper {
 		        .withIssuer(ISSUSER)
 		        .withSubject(SUBJECT)
 		        .withAudience(AUDIENCE)
-		        // 生成签名的时间 
+		        // 生成签名的时间
 		        .withIssuedAt(nowDate)
-		        // 签名过期的时间 
+		        // 签名过期的时间
 		        .withExpiresAt(expireDate)
 		        // 签名 Signature
 		        .sign(algorithm);
 		    return token;
 		} catch (JWTCreationException exception){
-			exception.printStackTrace();
+			logger.error("JWT 签发失败", exception);
 		}
 		return null;
 	}
-	
+
 	public Integer verifyTokenAndGetUserId(String token) {
 		try {
-		    Algorithm algorithm = Algorithm.HMAC256(SECRET);
+		    Algorithm algorithm = Algorithm.HMAC256(secret());
 		    JWTVerifier verifier = JWT.require(algorithm)
 		        .withIssuer(ISSUSER)
+		        .withAudience(AUDIENCE)
 		        .build();
 		    DecodedJWT jwt = verifier.verify(token);
 		    Map<String, Claim> claims = jwt.getClaims();
 		    Claim claim = claims.get("userId");
+		    if (claim == null || claim.isNull()) {
+		    	return 0;
+		    }
 		    return claim.asInt();
 		} catch (JWTVerificationException exception){
 //			exception.printStackTrace();
 		}
-		
+
 		return 0;
 	}
-	
+
 	public  Date getAfterDate(Date date, int year, int month, int day, int hour, int minute, int second){
 		if(date == null){
 			date = new Date();
 		}
-		
+
 		Calendar cal = new GregorianCalendar();
-		
+
 		cal.setTime(date);
 		if(year != 0){
 			cal.add(Calendar.YEAR, year);
@@ -100,5 +128,5 @@ public class JwtHelper {
 		}
 		return cal.getTime();
 	}
-	
+
 }

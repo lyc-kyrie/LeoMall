@@ -56,6 +56,9 @@ public class WxAuthController {
     @Autowired
     private CouponAssignService couponAssignService;
 
+    @Autowired
+    private CaptchaCodeManager captchaCodeManager;
+
     /**
      * 账号登录
      *
@@ -129,7 +132,7 @@ public class WxAuthController {
             sessionKey = result.getSessionKey();
             openId = result.getOpenid();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("微信登录换取 session/openid 失败", e);
         }
 
         if (sessionKey == null || openId == null) {
@@ -140,7 +143,9 @@ public class WxAuthController {
         if (user == null) {
             user = new LeomallUser();
             user.setUsername(openId);
-            user.setPassword(openId);
+            // P1-5：不再把 openId 明文当密码（可被 /auth/login 直接撞库登录）。
+            // 写入随机不可登录密码（BCrypt），微信用户如需账号密码登录走注册/重置流程。
+            user.setPassword(new BCryptPasswordEncoder().encode(CharUtil.getRandomString(32)));
             user.setWeixinOpenid(openId);
             user.setAvatar(userInfo.getAvatarUrl());
             user.setNickname(userInfo.getNickName());
@@ -184,7 +189,7 @@ public class WxAuthController {
      * @return
      */
     @PostMapping("regCaptcha")
-    public Object registerCaptcha(@RequestBody String body) {
+    public Object registerCaptcha(@RequestBody String body, HttpServletRequest request) {
         String phoneNumber = JacksonUtil.parseString(body, "mobile");
         if (StringUtils.isEmpty(phoneNumber)) {
             return ResponseUtil.badArgument();
@@ -196,8 +201,12 @@ public class WxAuthController {
         if (!notifyService.isSmsEnable()) {
             return ResponseUtil.fail(AUTH_CAPTCHA_UNSUPPORT, "小程序后台验证码服务不支持");
         }
+        // P1-4：号码日限 + IP 小时限，防短信轰炸/费用滥用
+        if (!captchaCodeManager.allowSend(phoneNumber, IpUtil.getIpAddr(request))) {
+            return ResponseUtil.fail(AUTH_CAPTCHA_FREQUENCY, "发送过于频繁，请稍后再试");
+        }
         String code = CharUtil.getRandomNum(6);
-        boolean successful = CaptchaCodeManager.addToCache(phoneNumber, code);
+        boolean successful = captchaCodeManager.addToCache(phoneNumber, code);
         if (!successful) {
             return ResponseUtil.fail(AUTH_CAPTCHA_FREQUENCY, "验证码未超时1分钟，不能发送");
         }
@@ -259,9 +268,8 @@ public class WxAuthController {
         if (!RegexUtil.isMobileSimple(mobile)) {
             return ResponseUtil.fail(AUTH_INVALID_MOBILE, "手机号格式不正确");
         }
-        //判断验证码是否正确
-        String cacheCode = CaptchaCodeManager.getCachedCaptcha(mobile);
-        if (cacheCode == null || cacheCode.isEmpty() || !cacheCode.equals(code)) {
+        //判断验证码是否正确（P1-4：成功即销毁，连续失败5次作废）
+        if (!captchaCodeManager.checkCaptcha(mobile, code)) {
             return ResponseUtil.fail(AUTH_CAPTCHA_UNMATCH, "验证码错误");
         }
 
@@ -273,7 +281,7 @@ public class WxAuthController {
                 WxMaJscode2SessionResult result = this.wxService.getUserService().getSessionInfo(wxCode);
                 openId = result.getOpenid();
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error("微信注册换取 openid 失败", e);
                 return ResponseUtil.fail(AUTH_OPENID_UNACCESS, "openid 获取失败");
             }
             userList = userService.queryByOpenid(openId);
@@ -282,9 +290,11 @@ public class WxAuthController {
             }
             if (userList.size() == 1) {
                 LeomallUser checkUser = userList.get(0);
-                String checkUsername = checkUser.getUsername();
-                String checkPassword = checkUser.getPassword();
-                if (!checkUsername.equals(openId) || !checkPassword.equals(openId)) {
+                // P1-5：以「username==openId 且未绑定手机号」识别微信自动创建的壳账号，
+                // 不再依赖明文密码比对（密码已改为随机 BCrypt 值）。
+                boolean wxOnlyShell = openId.equals(checkUser.getUsername())
+                        && StringUtils.isEmpty(checkUser.getMobile());
+                if (!wxOnlyShell) {
                     return ResponseUtil.fail(AUTH_OPENID_BINDED, "openid已绑定账号");
                 }
             }
@@ -334,7 +344,7 @@ public class WxAuthController {
      * @return
      */
     @PostMapping("captcha")
-    public Object captcha(@LoginUser Integer userId, @RequestBody String body) {
+    public Object captcha(@LoginUser Integer userId, @RequestBody String body, HttpServletRequest request) {
         if(userId == null){
             return ResponseUtil.unlogin();
         }
@@ -353,8 +363,12 @@ public class WxAuthController {
         if (!notifyService.isSmsEnable()) {
             return ResponseUtil.fail(AUTH_CAPTCHA_UNSUPPORT, "小程序后台验证码服务不支持");
         }
+        // P1-4：号码日限 + IP 小时限
+        if (!captchaCodeManager.allowSend(phoneNumber, IpUtil.getIpAddr(request))) {
+            return ResponseUtil.fail(AUTH_CAPTCHA_FREQUENCY, "发送过于频繁，请稍后再试");
+        }
         String code = CharUtil.getRandomNum(6);
-        boolean successful = CaptchaCodeManager.addToCache(phoneNumber, code);
+        boolean successful = captchaCodeManager.addToCache(phoneNumber, code);
         if (!successful) {
             return ResponseUtil.fail(AUTH_CAPTCHA_FREQUENCY, "验证码未超时1分钟，不能发送");
         }
@@ -388,9 +402,8 @@ public class WxAuthController {
             return ResponseUtil.badArgument();
         }
 
-        //判断验证码是否正确
-        String cacheCode = CaptchaCodeManager.getCachedCaptcha(mobile);
-        if (cacheCode == null || cacheCode.isEmpty() || !cacheCode.equals(code))
+        //判断验证码是否正确（P1-4：成功即销毁，连续失败5次作废）
+        if (!captchaCodeManager.checkCaptcha(mobile, code))
             return ResponseUtil.fail(AUTH_CAPTCHA_UNMATCH, "验证码错误");
 
         List<LeomallUser> userList = userService.queryByMobile(mobile);
@@ -442,9 +455,8 @@ public class WxAuthController {
             return ResponseUtil.badArgument();
         }
 
-        //判断验证码是否正确
-        String cacheCode = CaptchaCodeManager.getCachedCaptcha(mobile);
-        if (cacheCode == null || cacheCode.isEmpty() || !cacheCode.equals(code))
+        //判断验证码是否正确（P1-4：成功即销毁，连续失败5次作废）
+        if (!captchaCodeManager.checkCaptcha(mobile, code))
             return ResponseUtil.fail(AUTH_CAPTCHA_UNMATCH, "验证码错误");
 
         List<LeomallUser> userList = userService.queryByMobile(mobile);

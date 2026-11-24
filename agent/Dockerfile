@@ -35,4 +35,6 @@ RUN mkdir -p /app/data
 ENV DATA_DIR=/app/data
 
 EXPOSE 8000
-CMD ["uvicorn", "app.presentation.server:app", "--host", "0.0.0.0", "--port", "8000"]
+# P0-6：绑定地址由 HOST 环境变量决定，默认仅回环；
+# 容器内需要对外时由 compose 显式设置 HOST=0.0.0.0（且端口只映射到宿主机回环）
+CMD ["sh", "-c", "uvicorn app.presentation.server:app --host ${HOST:-127.0.0.1} --port ${PORT:-8000}"]

@@ -192,7 +192,7 @@ public class WxGoodsController {
 
 		}
 		catch (Exception e) {
-			e.printStackTrace();
+			logger.error("商品详情数据组装失败", e);
 		}
 
 		//商品分享图片地址

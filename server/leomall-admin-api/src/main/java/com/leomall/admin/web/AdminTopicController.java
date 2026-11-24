@@ -1,12 +1,11 @@
 package com.leomall.admin.web;
-
-import io.swagger.models.auth.In;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.JacksonUtil;
 import com.leomall.core.util.ResponseUtil;
+import com.leomall.core.util.RichTextUtil;
 import com.leomall.core.validator.Order;
 import com.leomall.core.validator.Sort;
 import com.leomall.db.domain.LeomallGoods;
@@ -72,6 +71,8 @@ public class AdminTopicController {
         if (error != null) {
             return error;
         }
+        // P2-9：专题内容富文本入库前白名单消毒
+        topic.setContent(RichTextUtil.clean(topic.getContent()));
         topicService.add(topic);
         return ResponseUtil.ok(topic);
     }
@@ -102,6 +103,8 @@ public class AdminTopicController {
         if (error != null) {
             return error;
         }
+        // P2-9：专题内容富文本入库前白名单消毒
+        topic.setContent(RichTextUtil.clean(topic.getContent()));
         if (topicService.updateById(topic) == 0) {
             return ResponseUtil.updatedDataFailed();
         }

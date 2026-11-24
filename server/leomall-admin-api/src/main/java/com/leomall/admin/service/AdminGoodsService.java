@@ -6,6 +6,7 @@ import com.leomall.admin.dto.GoodsAllinone;
 import com.leomall.admin.vo.CatVo;
 import com.leomall.core.qcode.QCodeService;
 import com.leomall.core.util.ResponseUtil;
+import com.leomall.core.util.RichTextUtil;
 import com.leomall.db.domain.*;
 import com.leomall.db.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -148,6 +149,8 @@ public class AdminGoodsService {
         }
 
         LeomallGoods goods = goodsAllinone.getGoods();
+        // P2-9：商品详情富文本入库前白名单消毒，防存储型 XSS
+        goods.setDetail(RichTextUtil.clean(goods.getDetail()));
         LeomallGoodsAttribute[] attributes = goodsAllinone.getAttributes();
         LeomallGoodsSpecification[] specifications = goodsAllinone.getSpecifications();
         LeomallGoodsProduct[] products = goodsAllinone.getProducts();
@@ -236,6 +239,8 @@ public class AdminGoodsService {
         }
 
         LeomallGoods goods = goodsAllinone.getGoods();
+        // P2-9：商品详情富文本入库前白名单消毒，防存储型 XSS
+        goods.setDetail(RichTextUtil.clean(goods.getDetail()));
         LeomallGoodsAttribute[] attributes = goodsAllinone.getAttributes();
         LeomallGoodsSpecification[] specifications = goodsAllinone.getSpecifications();
         LeomallGoodsProduct[] products = goodsAllinone.getProducts();
