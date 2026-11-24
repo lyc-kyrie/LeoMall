@@ -263,8 +263,9 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-$agent-color: #ff5a2d;
-$agent-color-light: #ff8a3d;
+// 阶段2D 前置 quick wins：统一品牌红、去跨色相渐变
+$agent-color: $red;
+$agent-color-light: $red;
 
 .agent-fab {
   position: fixed;
@@ -274,8 +275,8 @@ $agent-color-light: #ff8a3d;
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: linear-gradient(135deg, $agent-color-light 0%, $agent-color 100%);
-  box-shadow: 0 6px 16px rgba(255, 90, 45, 0.45);
+  background: $agent-color;
+  box-shadow: 0 6px 16px rgba(217, 58, 58, 0.35);
   display: flex;
   flex-direction: column;
   align-items: center;

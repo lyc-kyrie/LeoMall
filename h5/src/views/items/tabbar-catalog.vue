@@ -15,9 +15,7 @@
       >{{item.name}}</li>
     </ul>
     <div class="class_tree_content">
-      <div class="class_tree_all">
-        <img style="width:250px" v-lazy="currentCategory.picUrl">
-      </div>
+      <!-- 阶段2D 前置 quick wins：移除 litemall 字标图，类目描述改为流式排版 -->
       <div class="box">
         <span>{{currentCategory.desc}}</span>
       </div>
@@ -65,7 +63,7 @@ export default {
     changeCatalog(id) {
       catalogCurrent({ id: id}).then(res => {
         let data = res.data.data;
-        this.currentCategory = data.currentCategory;        
+        this.currentCategory = data.currentCategory;
         this.currentSubCategoryList = data.currentSubCategory;
       });
     },
@@ -110,13 +108,11 @@ export default {
 
 
 .box {
-  width: 250px;
-  height: 20px;
-  text-align: center;
+  padding: 12px 16px 0;
+  text-align: left;
   font-family: PingFangSC-Light, helvetica, 'Heiti SC';
   font-size: 13px;
-  position: absolute;
-  top: 95px;
+  color: $font-color-gray;
 }
 .box span {
   line-height: 20px;
@@ -148,28 +144,20 @@ export default {
     background-color: #fff;
     border-left: 2px solid $red;
     color: $red;
-  }  
+  }
 }
 .class_tree_content {
   margin-left: 100px;
   height: 100%;
   overflow-x: hidden;
   overflow-y: scroll;
-  .class_tree_all {
-    text-align: right;
-    padding-right: 10px;
-    height: 40px;
-    line-height: 40px;
-    color: $font-color-gray;
-    font-size: $font-size-small;
-  }
   .van-icon-arrow {
     font-size: $font-size-small;
   }
   .class_tree_items_wrap {
     padding: 10px 20px;
     margin-right: -3%;
-    margin-top: 70px;
+    margin-top: 12px;
     text-align: center;
     > div {
       float: left;

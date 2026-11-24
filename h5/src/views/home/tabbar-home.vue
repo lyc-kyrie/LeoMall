@@ -10,7 +10,7 @@
       <van-swipe-item v-for="(banner, index) in shopInfos.banner"
                       :key="index">
         <img :src="banner.url"
-             style="height:230px">
+             style="display:block;width:100%;height:230px;object-fit:cover">
       </van-swipe-item>
     </van-swipe>
 

@@ -125,3 +125,16 @@ div.van-card__footer {
 .item_list .van-tab--disabled{
 	color: #000;
 }
+
+// 阶段2D 前置 quick wins：品牌色统一、去跨色相渐变
+.van-swipe__indicators .van-swipe__indicator--active {
+	background-color: $red;
+}
+.van-goods-action-button--warning {
+	background: #fff;
+	color: $red;
+	border: 1px solid $red;
+}
+.van-goods-action-button--danger {
+	background: $red;
+}

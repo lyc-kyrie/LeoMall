@@ -1,5 +1,10 @@
 <template>
   <div class="item_detail">
+    <!-- 阶段2D 前置 quick wins：加载守卫，杜绝加载期 ¥NaN 裸奔 -->
+    <div v-if="!goods.info.id" class="detail-loading">
+      <van-loading type="spinner" color="#D93A3A" />
+    </div>
+    <template v-if="goods.info.id">
     <van-swipe :autoplay="3000">
       <van-swipe-item v-for="(image, index) in goods.info.gallery" :key="index">
         <img v-lazy="image" width="100%">
@@ -57,6 +62,7 @@
       <van-goods-action-button type="warning" @click="skuClick" text="加入购物车"/>
       <van-goods-action-button type="danger" @click="skuClick" text="立即购买"/>
     </van-goods-action>
+    </template>
 
   </div>
 </template>
@@ -116,6 +122,14 @@ export default {
         props_arr.push([json['attribute'], json['value']]);
       });
       return props_arr || [];
+    }
+  },
+
+  // 路由参数变化（同组件复用）时重新加载，避免展示上一个商品的数据
+  watch: {
+    itemId() {
+      this.goods = { userHasCollect: 0, info: { gallery: [] } };
+      this.initData();
     }
   },
 
@@ -350,6 +364,12 @@ export default {
   img {
     max-width: 100%;
   }
+}
+
+.detail-loading {
+  padding: 120px 0;
+  text-align: center;
+  background-color: #fff;
 }
 
 .item_cell_group {
