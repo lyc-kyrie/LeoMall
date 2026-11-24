@@ -1,0 +1,68 @@
+/* LeoMall Design Tokens 单源（DESIGN-2D §二）
+   两端构建引入；Vant4 / Element Plus 通过 CSS variables 映射消费。
+   暗色模式预留 data-theme="dark" 映射（2D 后期可选开关）。 */
+:root {
+  /* 色彩 */
+  --brand: #D93A3A;
+  --brand-deep: #B32E2E;
+  --brand-soft: #FDEEEE;
+  --success: #22A06B;
+  --warning: #F5A623;
+  --danger: #E5484D;
+  --info: #6B7280;
+  --bg: #F7F8FA;
+  --card: #FFFFFF;
+  --text-1: #1F2329;
+  --text-2: #4E5969;
+  --text-3: #86909C;
+  --line: #E5E6EB;
+
+  /* 形状 / 阴影 */
+  --radius-card: 12px;
+  --radius-ctl: 8px;
+  --radius-pill: 999px;
+  --radius-img: 8px;
+  --shadow-1: 0 1px 2px rgba(31, 35, 41, .04);
+  --shadow-2: 0 6px 16px rgba(31, 35, 41, .08);
+
+  /* 间距（4 基数） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* 字体 / 壳 */
+  --font-stack: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --shell: 480px;
+}
+
+[data-theme="dark"] {
+  --brand: #E05555;
+  --brand-deep: #D93A3A;
+  --brand-soft: #3A2222;
+  --bg: #17181A;
+  --card: #232426;
+  --text-1: #F2F3F5;
+  --text-2: #C9CDD4;
+  --text-3: #86909C;
+  --line: #3A3B3D;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .3);
+  --shadow-2: 0 6px 16px rgba(0, 0, 0, .45);
+}
+
+body {
+  font-family: var(--font-stack);
+  color: var(--text-1);
+  background: var(--bg);
+}
+
+/* 动效规范：150–250ms ease-out；reduced-motion 全关 */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

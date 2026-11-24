@@ -14,15 +14,17 @@
 				@click-icon="getCode"
 				placeholder="请输入验证码">
 
-				<span slot="button"
-					class="verifi_code red"
-					:class="{verifi_code_counting: counting}"
-					@click="getCode">
-					<countdown v-if="counting" :time="60000" @end="countdownend">
-					  <template slot-scope="props">{{ +props.seconds || 60 }}秒后获取</template>
-					</countdown>
-					<span v-else>获取验证码</span>
-				</span>
+				<template #button>
+					<span
+						class="verifi_code red"
+						:class="{verifi_code_counting: counting}"
+						@click="getCode">
+						<countdown v-if="counting" :time="60000" @end="countdownend">
+						  <template #default="props">{{ +props.seconds || 60 }}秒后获取</template>
+						</countdown>
+						<span v-else>获取验证码</span>
+					</span>
+				</template>
 			</van-field>
 
       <van-field
@@ -51,7 +53,7 @@
 <script>
 import { authCaptcha, authReset, authLogout } from '@/api/api';
 import { removeLocalStorage } from '@/utils/local-storage';
-import { Field, Toast } from 'vant';
+import { Field, showSuccessToast, showFailToast, showDialog } from 'vant';
 
 export default {
   data: () => ({
@@ -71,10 +73,10 @@ export default {
           code: this.code
         })
         .then(() => {
-          this.$dialog.alert({ message: '保存成功, 请重新登录.' })
+          showDialog({ message: '保存成功, 请重新登录.' })
           authLogout();
         }).catch (error => {
-        Toast.fail(error.data.errmsg);
+        showFailToast(error.data.errmsg);
         });
       }
     },
@@ -83,7 +85,7 @@ export default {
     },
     getCode() {
       if(this.mobile === ''){
-        this.$toast.fail('请输入号码');
+        showFailToast('请输入号码');
         return
       }
 
@@ -92,10 +94,10 @@ export default {
           mobile: this.mobile,
           type: 'change-password'
         }).then(() => {
-          this.$toast.success('发送成功');
+          showSuccessToast('发送成功');
           this.counting = true;
         }).catch(error => {
-          this.$toast.fail(error.data.errmsg);
+          showFailToast(error.data.errmsg);
           this.counting = false;
         })
 

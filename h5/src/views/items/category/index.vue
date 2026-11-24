@@ -1,11 +1,11 @@
 <template>
   <div class="item_list">
-    <van-tabs v-model="navActive"
+    <van-tabs v-model:active="navActive"
               @click="handleTabClick">
       <van-tab v-for="(nav, index) in navList"
                :title="nav.name"
                :key="index">
-        <van-list v-model="loading"
+        <van-list v-model:loading="loading"
                   :finished="finished"
                   :immediate-check="false"
                   finished-text="没有更多了"

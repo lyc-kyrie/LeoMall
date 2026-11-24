@@ -205,3 +205,42 @@ swiper 指示点、checkbox、radio、stepper 全部走 token。
 - **详情路由参数切换不刷新**：vue-router 复用组件、created 不重跑，hash 直切商品 id 展示旧数据 → 加 `watch: itemId` 重置 goods 并重载（after3-detail：1006007 正确显示 ¥459）。
 
 **说明**：本地 API <100ms，正常路径加载窗口短于截屏延迟，守卫视觉验收采用错误路径（spinner 常驻）；真实弱网下正常路径同样受守卫保护。
+
+---
+
+## 七、2D-1 执行记录（2026-11-24）
+
+**范围**：H5 整应用 Vue2→Vue3 + webpack→Vite5 + Vant2→Vant4 基础迁移（单应用无法分页迁，50 个 vue 全量过一遍）；tokens 单源；壳/登录/首页视觉重建。后端零改动。
+
+### 7.1 工程层
+
+- `h5/package.json`：vue^3.5 / vant^4.9 / vue-router^4.5 / vuex^4.1 / @chenfengyuan/vue-countdown^2.1 / axios^1.7 / js-cookie^3 / lodash；dev 换 vite^5.4 + @vitejs/plugin-vue^5.2 + sass^1.80 + autoprefixer（.postcssrc.js 依赖）；vuelidate 实际未用，移除。
+- `h5/vite.config.js`（纯 ESM）：alias `@`/`@tokens`（→仓库根 design/tokens.css）；`resolve.extensions` 补 `.vue`（路由无扩展名 import）；proxy `/leomall/wx`→8080 并 `proxyReq.removeHeader('origin')`（2C 的 CORS 修复随迁）；scss `additionalData` 函数形式对非 `_var/_mixin` 入口注入 `@use ... as *`。
+- `h5/index.html` 新建（title LeoMall + module script）；四个 `.env` 的 `VUE_APP_BASE_API`→`VITE_BASE_API`。
+- `main.js` createApp + 全量 Vant + `vant/lib/index.css` + `@tokens` + global.scss + iconfont；Lazyload 占位图改 import；`yuan/dateFormat` 挂 globalProperties（废 filters）；VueCountdown 注册双别名。
+- router 改 `createWebHashHistory`，catch-all 改 `/:pathMatch(.*)*`；store 改 `createStore`；`request.js` 改 `showDialog/showFailToast` + `import.meta.env`。
+
+### 7.2 Vant2→4 断点与移植
+
+- 机械替换（workspace port-2d1.ps1，29 文件）：`$toast/$dialog`→函数式、`slot-scope`→`#default`、`.native` 去除、`| yuan`→`yuan()`、v-model 拆分（list→:loading、popup→:show、tabs→:active）、goods-action→action-bar、`:info`→`:badge`。
+- 手工：cart 三 slot→`template #` + stepper `@change` 箭头函数；popup-props `$parent.value`→`$emit('close')`；feedback/user-info picker columns 改 `{text,value}` + `onType({selectedValues})`；order/refund/coupon-list 的 **van-panel（Vant4 已移除）**→div 自绘头行；checkout/collect/payment/set-*/register-*/forget 旧 slot→`template #`（field slot="icon"→#button、计数→#extra）；field 组件整体重写（modelValue/update:modelValue + inheritAttrs:false + focus-within 品牌环）；清仓库原有坏 import `ard`（webpack 时代未报错，Vite 必炸）。
+- **Vant4 主入口不再导出 Sku**：详情规格弹层自绘（van-popup + 规格胶囊 chips + stepper + 双胶囊按钮），复用既有 `getProductId/getProductIdByOne/addCart/buyGoods`；新增守卫：未选齐规格 toast「请选择规格」、组合无对应 product toast「该规格组合暂无库存」。
+- keep-alive：App 双分支 v-if 同 Component 触发 Vue3 `deactivate is not a function` → 单分支 `<keep-alive :include>` + 四视图补 name（tabbar-home/tabbar-catalog/search-view/tabbar-user）。
+- sass：`@use` 模块作用域下 mixin 内部变量需模块自带 `@use "./var" as *`（_mixin.scss 顶部）。
+
+### 7.3 tokens 单源与视觉
+
+- 仓库根 `design/tokens.css`：--brand #D93A3A / --brand-deep / --brand-soft / --bg #F7F8FA / --text-1/2/3 / --line / 圆角 / 阴影 / 间距 / --shell 480px + `data-theme="dark"` 映射 + reduced-motion。
+- `_var.scss` 全改 var() 别名（全站旧 $red 引用自动跟随）；**`_vant-theme.scss` 删除**，Vant4 主题改 `:root` CSS 变量映射（global.scss 末段，加载序在 vant/lib/index.css 之后稳定胜出）；唯一语义覆写 `.van-action-bar-button--warning` 白底红描边。
+- 壳：body max-width var(--shell)；固定底栏壳内定位用 `left:50%; margin-left:calc(min(100%,var(--shell))/-2); width:min(100%,var(--shell))`（**不用 transform**，免破坏 Vant 弹层动画）。
+- login.vue 重写（品牌 L 标 + slogan + 白卡表单 + 胶囊红 CTA）；tabbar-home.vue 重写（圆角 banner 16:9 红点、金刚区 2×5 浅底 tile、票券横滑卡带齿孔 + 领取胶囊、红竖条区块标题、品牌/专题横滑卡、新品/人气双列卡、横滑隐藏滚动条）；团购区加空数据守卫（种子 grouponList 空时整区隐藏）。
+- 种子文案：L1 类目 desc 的严选旧 slogan（「回家，放松身心」等 9 条）→ LeoMall 中性文案，DB 与 `sql/leomall_data.sql` 同步更新（分类页头部直读该字段）。
+
+### 7.4 验收（design-shots/2d1-*，10 张）
+
+home / login / catalog / detail / sku / sku-added / checkout / cart / user / search 逐页截屏，控制台零错误。
+功能冒烟：登录态加购→toast「已添加至购物车」+ 底栏 badge 1；选规格→立即购买→checkout（标准 ¥899 x1、券 1 张可用、总计 ¥899、提交条壳内对齐）；未选规格直接购买被守卫拦截。
+
+**验收环境说明**：内嵌浏览器不连续产帧（document visible 但 rAF 停摆），Vue transition 停在 enter-from 初态导致弹层截屏不可见；截屏时以测试侧 DOM 直落终态（仅验收会话内，不改应用代码）。真实浏览器帧正常，不受影响。
+
+**余量**：2D-2 分类/搜索/详情骨架三态；2D-3 购物车/结算/我的 + AgentChat 视觉；2D-4 admin 登录/框架/仪表盘；2D-5 admin 列表/表单 + AI 页。

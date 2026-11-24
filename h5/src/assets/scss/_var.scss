@@ -1,10 +1,12 @@
-$red: #D93A3A;
-$gray-deep: #999;
-$gray: #bfbfbf;
-$gray-shallow: #e5e5e5;
-$gray-shallow-more: #f2f2f2;
+// 阶段2D-1：scss 变量改为 tokens 别名（单源 design/tokens.css）
+// 全站旧引用（$red/$bg-color/...）自动跟随 token，无需逐页改色
+$red: var(--brand);
+$gray-deep: var(--text-3);
+$gray: var(--text-3);
+$gray-shallow: var(--line);
+$gray-shallow-more: var(--bg);
 
-$icon-bg: #f9f3e8;
+$icon-bg: var(--brand-soft);
 
 //字体变量
 $font-color-gray: $gray-deep;

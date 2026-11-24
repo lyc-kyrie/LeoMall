@@ -4,7 +4,7 @@
       <div class="title">团购列表</div>
     </div>
 
-    <van-list v-model="loading"
+    <van-list v-model:loading="loading"
               :finished="finished"
               :immediate-check="false"
               finished-text="没有更多了"
@@ -17,7 +17,7 @@
                 :price="item.retailPrice"
                 :origin-price="item.counterPrice"
                 @click="itemClick(item.id)">
-        <div slot="tags">
+        <template #tags>
           <van-tag plain
                    type="primary">
             {{item.grouponMember}}人成团
@@ -27,7 +27,7 @@
                    style="margin-left:5px;">
             {{item.grouponDiscount}}元再减
           </van-tag>
-        </div>
+        </template>
       </van-card>
     </van-list>
 

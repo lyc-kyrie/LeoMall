@@ -12,7 +12,7 @@
 
 <script>
 import { authProfile } from '@/api/api';
-import { Field } from 'vant';
+import { Field, showDialog } from 'vant';
 
 export default {
   data() {
@@ -32,7 +32,7 @@ export default {
     saveNick() {
       authProfile({ nickname: this.nickName }).then(res => {
         localStorage.setItem('nickName', this.nickName);
-        this.$dialog.alert({ message: '保存成功' }).then(() => {
+        showDialog({ message: '保存成功' }).then(() => {
           this.$router.go(-1);
         });
       });

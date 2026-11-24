@@ -1,41 +1,37 @@
-import Vue from 'vue';
+import { createApp } from 'vue';
 import App from './App.vue';
 import router from './router';
-import 'vant/lib/icon/local.css';
+import store from './store';
+
+import Vant, { Lazyload } from 'vant';
+import 'vant/lib/index.css';
+import '@tokens';
 import '@/assets/scss/global.scss';
 import '@/assets/scss/iconfont/iconfont.css';
 
 import VueCountdown from '@chenfengyuan/vue-countdown';
-import store from './store'
+import { yuan, dateFormat } from '@/filter';
+import goodsDefaultImg from '@/assets/images/goods_default.png';
 
+const app = createApp(App);
 
-import filters from '@/filter';
+// Vue3 移除 filters：改为全局方法，模板 {{ yuan(x) }} 调用
+app.config.globalProperties.yuan = yuan;
+app.config.globalProperties.dateFormat = dateFormat;
 
-Vue.component(VueCountdown.name, VueCountdown);
-Vue.use(filters);
+app.component('VueCountdown', VueCountdown);
+app.component('countdown', VueCountdown);
 
-
-import { Lazyload, Icon, Cell, CellGroup, loading, Button, Toast } from 'vant';
-Vue.use(Icon);
-Vue.use(Cell);
-Vue.use(CellGroup);
-Vue.use(loading);
-Vue.use(Button);
-Vue.use(Toast);
-Vue.use(Lazyload, {
+app.use(store);
+app.use(router);
+app.use(Vant);
+app.use(Lazyload, {
   preLoad: 1.3,
-  error: require('@/assets/images/goods_default.png'),
-  loading: require('@/assets/images/goods_default.png'),
+  error: goodsDefaultImg,
+  loading: goodsDefaultImg,
   attempt: 1,
   listenEvents: ['scroll'],
   lazyComponent: true
 });
 
-
-Vue.config.productionTip = false;
-
-new Vue({
-  router,
-  store,
-  render: h => h(App)
-}).$mount('#app');
+app.mount('#app');

@@ -13,8 +13,8 @@
     <van-cell-group class="item_cell_group" v-if="goods">
       <van-cell class="item_info">
         <div>
-          <span class="item_price">{{ goods.info.retailPrice*100 | yuan }}</span>
-          <span class="item_market_price">{{goods.info.counterPrice*100 | yuan}}</span>
+          <span class="item_price">{{ yuan(goods.info.retailPrice*100) }}</span>
+          <span class="item_market_price">{{ yuan(goods.info.counterPrice*100) }}</span>
         </div>
         <div class="item-title">
           {{ goods.info.name }}
@@ -29,22 +29,43 @@
         title="规格"
         isLink
         value="请选择"
-        @click.native="skuClick"
+        @click="skuClick"
       />
-      <van-cell title="属性" isLink @click.native="propsPopup = true"/>
+      <van-cell title="属性" isLink @click="propsPopup = true"/>
       <van-cell title="运费" value="满88免邮费"/>
     </van-cell-group>
-    <van-sku
-      v-model="showSku"
-      :sku="sku"
-      :hide-stock="true"
-      :goods="skuGoods"
-      :goodsId="goods.info.id"
-      @buy-clicked="buyGoods"
-      @add-cart="addCart"
-    />
-    <van-popup v-model="propsPopup" position="bottom">
-      <popup-props :propsStr="props_str"></popup-props>
+    <van-popup v-model:show="showSku" position="bottom" round class="sku_popup">
+      <div class="sku_head">
+        <img :src="goods.info.picUrl" alt="">
+        <div class="sku_head_info">
+          <div class="sku_price">¥{{ skuPrice }}</div>
+          <div class="sku_selected">{{ selectedText || '请选择规格' }}</div>
+        </div>
+        <van-icon name="cross" class="sku_close" @click="showSku = false"/>
+      </div>
+      <div class="sku_body">
+        <div class="sku_group" v-for="(spec, si) in goods.specificationList" :key="spec.id">
+          <div class="sku_group_name">{{spec.name}}</div>
+          <div class="sku_values">
+            <span class="sku_value"
+                  :class="{active: selected[si] === vv.id}"
+                  v-for="vv in spec.valueList"
+                  :key="vv.id"
+                  @click="pick(si, vv.id)">{{vv.value}}</span>
+          </div>
+        </div>
+        <div class="sku_group">
+          <div class="sku_group_name">数量</div>
+          <van-stepper v-model="selectedNum" min="1" max="999"/>
+        </div>
+      </div>
+      <div class="sku_foot">
+        <van-button round class="sku_btn_cart" @click="submitSku('cart')">加入购物车</van-button>
+        <van-button round type="danger" class="sku_btn_buy" @click="submitSku('buy')">立即购买</van-button>
+      </div>
+    </van-popup>
+    <van-popup v-model:show="propsPopup" position="bottom">
+      <popup-props :propsStr="props_str" @close="propsPopup = false"></popup-props>
     </van-popup>
   </div>
 
@@ -56,12 +77,12 @@
       </div>
     </div>
 
-    <van-goods-action>
-      <van-goods-action-icon @click="toCart" icon="cart-o" :info="(cartInfo > 0) ? cartInfo : ''"/>
-      <van-goods-action-icon @click="addCollect" icon="star-o" :style="(goods.userHasCollect !== 0) ? 'color: #f7b444;':''"/>
-      <van-goods-action-button type="warning" @click="skuClick" text="加入购物车"/>
-      <van-goods-action-button type="danger" @click="skuClick" text="立即购买"/>
-    </van-goods-action>
+    <van-action-bar>
+      <van-action-bar-icon @click="toCart" icon="cart-o" :badge="(cartInfo > 0) ? cartInfo : ''"/>
+      <van-action-bar-icon @click="addCollect" icon="star-o" :style="(goods.userHasCollect !== 0) ? 'color: #f7b444;':''"/>
+      <van-action-bar-button type="warning" @click="skuClick" text="加入购物车"/>
+      <van-action-bar-button type="danger" @click="skuClick" text="立即购买"/>
+    </van-action-bar>
     </template>
 
   </div>
@@ -71,7 +92,7 @@
 
 import { goodsDetail, cartGoodsCount, collectAddOrDelete, cartAdd, cartFastAdd } from '@/api/api';
 
-import { Sku, Swipe, SwipeItem, GoodsAction, GoodsActionButton, GoodsActionIcon, Popup } from 'vant';
+import { Swipe, SwipeItem, ActionBar, ActionBarButton, ActionBarIcon, Popup, showToast } from 'vant';
 import { setLocalStorage } from '@/utils/local-storage';
 import popupProps from './popup-props';
 import _ from 'lodash';
@@ -92,24 +113,9 @@ export default {
           gallery: []
         }
       },
-      sku: {
-        tree: [],
-        list: [],
-        price: '1.00' // 默认价格（单位元）
-      },
-      skuGoods: {
-        // 商品标题
-        title: '',
-        // 默认商品 sku 缩略图
-        picture: ''
-      },
       cartInfo: 0,
-      selectSku: {
-        selectedNum: 1,
-        selectedSkuComb: {
-          sku_str: 'aa'
-        }
-      },
+      selected: [],
+      selectedNum: 1,
       propsPopup: false,
       showSku: false
     };
@@ -122,6 +128,27 @@ export default {
         props_arr.push([json['attribute'], json['value']]);
       });
       return props_arr || [];
+    },
+    currentProductId() {
+      if (this.selected[0] && this.selected[1]) {
+        return this.getProductId(this.selected[0], this.selected[1]);
+      }
+      if (this.selected[0]) {
+        return this.getProductIdByOne(this.selected[0]);
+      }
+      return 0;
+    },
+    skuPrice() {
+      const product = _.find(this.goods.productList, v => v.id === this.currentProductId);
+      return product ? product.price : this.goods.info.retailPrice;
+    },
+    selectedText() {
+      const names = [];
+      _.each(this.goods.specificationList, (spec, si) => {
+        const vv = _.find(spec.valueList, v => v.id === this.selected[si]);
+        if (vv) names.push(vv.value);
+      });
+      return names.join(' / ');
     }
   },
 
@@ -144,7 +171,8 @@ export default {
     initData() {
       goodsDetail({ id: this.itemId }).then(res => {
         this.goods = res.data.data;
-        this.skuAdapter();
+        this.selected = [];
+        this.selectedNum = 1;
       });
 
       cartGoodsCount().then(res => {
@@ -162,7 +190,7 @@ export default {
           this.goods.userHasCollect = 0;
         } else {
           this.goods.userHasCollect = 1;
-          this.$toast({
+          showToast({
             message: '收藏成功',
             duration: 1500
           });
@@ -219,7 +247,7 @@ export default {
         productId: 0
       };
       if (_.has(data.selectedSkuComb, 's3')) {
-        this.$toast({
+        showToast({
           message: '目前仅支持两规格',
           duration: 1500
         });
@@ -234,7 +262,7 @@ export default {
       }
       cartAdd(params).then(() => {
         this.cartInfo = this.cartInfo + data.selectedNum;
-        this.$toast({
+        showToast({
           message: '已添加至购物车',
           duration: 1500
         });
@@ -249,7 +277,7 @@ export default {
         productId: 0
       };
       if (_.has(data.selectedSkuComb, 's3')) {
-        this.$toast({
+        showToast({
           message: '目前仅支持两规格',
           duration: 1500
         });
@@ -269,80 +297,30 @@ export default {
         this.$router.push('/order/checkout');
       });
     },
-    skuAdapter() {
-      const tree = this.setSkuTree();
-      const list = this.setSkuList();
-      const skuInfo = {
-        price: parseInt(this.goods.info.retailPrice), // 未选择规格时的价格
-        stock_num: 0, // TODO 总库存
-        collection_id: '', // 无规格商品skuId取collection_id，否则取所选sku组合对应的id
-        none_sku: false, // 是否无规格商品
-        hide_stock: true
-      };
-      this.sku = {
-        tree,
-        list,
-        ...skuInfo
-      };
-      this.skuGoods = {
-        title: this.goods.info.name,
-        picture: this.goods.info.picUrl
-      };
+    pick(si, id) {
+      this.selected[si] = this.selected[si] === id ? undefined : id;
+      this.selected = [...this.selected];
     },
-    setSkuList() {
-      var sku_list = [];
-      _.each(this.goods.productList, v => {
-        var sku_list_obj = {};
-        _.each(v.specifications, (specificationName, index) => {
-          sku_list_obj['s' + (~~index + 1)] = this.findSpecValueIdByName(
-            specificationName
-          );
-        });
-
-        sku_list_obj.price = v.price * 100;
-        sku_list_obj.stock_num = v.number;
-        sku_list.push(sku_list_obj);
-      });
-
-      return sku_list;
-    },
-    findSpecValueIdByName(name) {
-      let id = 0;
-      _.each(this.goods.specificationList, specification => {
-        _.each(specification.valueList, specValue => {
-          if (specValue.value === name) {
-            id = specValue.id;
-            return;
-          }
-        });
-        if (id !== 0) {
-          return;
-        }
-      });
-      return id;
-    },
-    setSkuTree() {
-      let that = this;
-      let specifications = [];
-      _.each(this.goods.specificationList, (v, k) => {
-        let values = [];
-        _.each(v.valueList, vv => {
-          vv.name = vv.value;
-          values.push({
-            id: vv.id,
-            name: vv.value,
-            imUrl: vv.picUrl
-          });
-        });
-
-        specifications.push({
-          k: v.name,
-          v: values,
-          k_s: 's' + (~~k + 1)
-        });
-      });
-
-      return specifications;
+    submitSku(mode) {
+      const groups = this.goods.specificationList.length;
+      const picked = this.selected.filter(v => v != null).length;
+      if (picked < groups) {
+        showToast({ message: '请选择规格', duration: 1500 });
+        return;
+      }
+      if (groups > 0 && !this.currentProductId) {
+        showToast({ message: '该规格组合暂无库存', duration: 1500 });
+        return;
+      }
+      const comb = {};
+      this.selected.forEach((v, i) => { if (v != null) comb['s' + (i + 1)] = v; });
+      const data = {
+        goodsId: this.goods.info.id,
+        selectedNum: this.selectedNum,
+        selectedSkuComb: comb
+      };
+      if (mode === 'cart') this.addCart(data);
+      else this.buyGoods(data);
     }
   },
 
@@ -350,11 +328,10 @@ export default {
     [Popup.name]: Popup,
     [Swipe.name]: Swipe,
     [SwipeItem.name]: SwipeItem,
-    [Sku.name]: Sku,
-    [GoodsAction.name]: GoodsAction,
-    [GoodsActionButton.name]: GoodsActionButton,
-    [GoodsActionIcon.name]: GoodsActionIcon,
-    [popupProps.name]: popupProps
+    [ActionBar.name]: ActionBar,
+    [ActionBarButton.name]: ActionBarButton,
+    [ActionBarIcon.name]: ActionBarIcon,
+    'popup-props': popupProps
   }
 };
 </script>
@@ -411,12 +388,12 @@ export default {
 
 .item_desc {
   background-color: #fff;
-  ::v-deep p {
+  :deep(p) {
     padding: 0 10px;
     margin-block-start: 0 !important;
     margin-block-end: 0 !important;
   }
-  ::v-deep img {
+  :deep(img) {
     max-width: 100%;
     display: block;
   }
@@ -426,5 +403,94 @@ export default {
   @include one-border;
   padding: 10px 0;
   text-align: center;
+}
+
+.sku_head {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  align-items: flex-start;
+
+  img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    background: var(--bg);
+  }
+}
+
+.sku_head_info {
+  flex: 1;
+}
+
+.sku_price {
+  color: var(--brand);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.sku_selected {
+  color: var(--text-3);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.sku_close {
+  color: var(--text-3);
+  font-size: 18px;
+}
+
+.sku_body {
+  padding: 0 16px;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.sku_group {
+  padding: 10px 0;
+}
+
+.sku_group_name {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 8px;
+}
+
+.sku_values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sku_value {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid transparent;
+  font-size: 13px;
+  color: var(--text-1);
+
+  &.active {
+    color: var(--brand);
+    background: var(--brand-soft);
+    border-color: var(--brand);
+  }
+}
+
+.sku_foot {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+
+  .van-button {
+    flex: 1;
+    height: 42px;
+  }
+}
+
+.sku_btn_cart {
+  color: var(--brand);
+  border: 1px solid var(--brand);
 }
 </style>

@@ -9,7 +9,7 @@
     <van-cell-group class="payment_group">
       <van-cell title="订单编号" :value="order.orderInfo.orderSn"/>
       <van-cell title="实付金额">
-        <span class="red">{{order.orderInfo.actualPrice *100 | yuan}}</span>
+        <span class="red">{{ yuan(order.orderInfo.actualPrice *100) }}</span>
       </van-cell>
     </van-cell-group>
 
@@ -18,13 +18,13 @@
       <van-radio-group v-model="payWay">
         <van-cell-group>
           <van-cell>
-            <template slot="title">
+            <template #title>
               <img src="../../../assets/images/ali_pay.png" alt="支付宝" width="82" height="29">
             </template>
             <van-radio name="ali"/>
           </van-cell>
           <van-cell>
-            <template slot="title">
+            <template #title>
               <img src="../../../assets/images/wx_pay.png" alt="微信支付" width="113" height="23">
             </template>            
             <van-radio name="wx"/>
@@ -33,12 +33,12 @@
       </van-radio-group>
     </div>
 
-    <van-button class="pay_submit" @click="pay" type="primary" bottomAction>去支付</van-button>
+    <van-button class="pay_submit" @click="pay" type="primary">去支付</van-button>
   </div>
 </template>
 
 <script>
-import { Radio, RadioGroup, Dialog } from 'vant';
+import { Radio, RadioGroup, showDialog } from 'vant';
 import { orderDetail, orderPrepay, orderH5pay } from '@/api/api';
 import _ from 'lodash';
 import { getLocalStorage, setLocalStorage } from '@/utils/local-storage';
@@ -70,7 +70,7 @@ export default {
     },
     pay() {
       
-      Dialog.alert({
+      showDialog({
         message: '你选择了' + (this.payWay === 'wx' ? '微信支付' : '支付宝支付')
       }).then(() => {
         if (this.payWay === 'wx') {
@@ -112,7 +112,7 @@ export default {
                 }
               })
               .catch(err => {
-                Dialog.alert({ message: err.data.errmsg });
+                showDialog({ message: err.data.errmsg });
                 that.$router.replace({
                   name: 'paymentStatus',
                   params: {
@@ -136,7 +136,7 @@ export default {
                 );
               })
               .catch(err => {
-                Dialog.alert({ message: err.data.errmsg });
+                showDialog({ message: err.data.errmsg });
               });
           }
         } else {
@@ -181,8 +181,7 @@ export default {
 
   components: {
     [Radio.name]: Radio,
-    [RadioGroup.name]: RadioGroup,
-    [Dialog.name]: Dialog
+    [RadioGroup.name]: RadioGroup
   }
 };
 </script>

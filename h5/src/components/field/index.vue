@@ -4,24 +4,26 @@
 		<div class="md_field_control">
 			<input
 				:type="type"
-				v-on="listeners"
 				v-bind="$attrs"
-				:value="value">
+				:value="modelValue"
+				@input="onInput">
 		</div>
 		<div>
 			<slot name="rightIcon">
-				<van-icon :name="rightIcon" @click="rightClick" v-show="value" />
+				<van-icon :name="rightIcon" @click="rightClick" v-show="modelValue" />
 			</slot>
 		</div>
 	</div>
 </template>
 
 <script>
+// Vue3：v-model = modelValue/update:modelValue；$listeners 并入 $attrs
 export default {
   name: 'md-field',
+  inheritAttrs: false,
 
   props: {
-    value: {},
+    modelValue: {},
     type: {
       type: String,
       default: 'text'
@@ -30,18 +32,12 @@ export default {
     icon: String,
     isError: Boolean
   },
-  computed: {
-    listeners() {
-      return {
-        ...this.$listeners,
-        input: this.onInput
-      };
-    }
-  },
+
+  emits: ['update:modelValue', 'right-click'],
 
   methods: {
     onInput(event) {
-      this.$emit('input', event.target.value);
+      this.$emit('update:modelValue', event.target.value);
     },
     rightClick(event) {
       this.$emit('right-click', event);
@@ -55,14 +51,19 @@ export default {
 .md_field {
   position: relative;
   border: 1px solid $border-color;
-  border-radius: 5px;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  padding-left: 10px;
+  border-radius: var(--radius-ctl);
+  padding-top: 12px;
+  padding-bottom: 12px;
+  padding-left: 12px;
   display: table;
   width: 100%;
   box-sizing: border-box;
-  background-color: #fff;
+  background-color: var(--card);
+  transition: border-color .2s ease-out, box-shadow .2s ease-out;
+  &:focus-within {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 2px var(--brand-soft);
+  }
   > div {
     display: table-cell;
   }

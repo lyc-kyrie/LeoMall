@@ -1,6 +1,6 @@
 <template>
   <div class="goods_topic_list">
-    <van-list v-model="loading"
+    <van-list v-model:loading="loading"
               :finished="finished"
               :immediate-check="false"
               finished-text="没有更多了"

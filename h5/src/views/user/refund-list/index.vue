@@ -2,18 +2,20 @@
   <div class="refund_list">
     <van-tabs sticky :active="activeIndex" :swipe-threshold="5" @click="handleTabClick">
       <van-tab v-for="(tab, tabIndex) in tabsItem" :title="tab.name" :key="tabIndex">
-        <van-list v-model="loading"
+        <van-list v-model:loading="loading"
                   :finished="finished"
                   :immediate-check="false"
                   finished-text="没有更多了"
                   @load="getRefundList">
-          <van-panel
+          <div
             v-for="(el, i) in tab.items"
             class="order_list--panel"
             :key="i"
-            :title="'订单编号: ' + el.id"
-            :status="getStatusText(el.status)"
           >
+            <div class="order-panel__head">
+              <span>订单编号: {{el.id}}</span>
+              <span class="order-panel__status">{{getStatusText(el.status)}}</span>
+            </div>
             <div>
               <van-card
                 class="order_list--van-card"
@@ -26,15 +28,15 @@
               />
               <div
                 class="order_list--total"
-              >合计: {{el.refund_fee | yuan}}（含运费{{el.refund_post_fee | yuan}}）</div>
+              >合计: {{ yuan(el.refund_fee) }}（含运费{{ yuan(el.refund_post_fee) }}）</div>
             </div>
-            <div slot="footer" style="text-align: right;">
+            <div style="text-align: right;">
               <van-button
                 size="small"
                 @click="refund_handle(i)"
               >{{ el.status == 10 ? "撤销申请" : "查看详情"}}</van-button>
             </div>
-          </van-panel>
+          </div>
         </van-list>
       </van-tab>
     </van-tabs>
@@ -44,7 +46,7 @@
 <script>
 import { REFUND_LIST } from '@/api/api';
 
-import { Tab, Tabs, Panel, Card, List } from 'vant';
+import { Tab, Tabs, Card, List, showToast, showConfirmDialog } from 'vant';
 
 const STATUS_TEXT = {
   10: '退款中',
@@ -91,12 +93,11 @@ export default {
     refund_handle(i) {
       const item = this.items[i];
       if (item.status == 10) {
-        this.$dialog
-          .confirm({
+        showConfirmDialog({
             message: '撤销后将不能再次发起申请，确定要撤销该申请吗？'
           })
           .then(() => {
-            this.$toast('已撤销该退款申请');
+            showToast('已撤销该退款申请');
             this.items[i].status = 50;
           });
       } else {

@@ -22,7 +22,7 @@
 
     <van-button size="large" class="user_quit" @click="loginOut">退出当前账户</van-button>
 
-    <van-popup v-model="showSex" position="bottom">
+    <van-popup v-model:show="showSex" position="bottom">
       <van-picker
         showToolbar
         :columns="sexColumns"
@@ -44,10 +44,9 @@ export default {
   data() {
     return {
       sexColumns: [
-        {
-          values: ['保密', '男', '女'],
-          defaultIndex: 0
-        }
+        { text: '保密', value: 0 },
+        { text: '男', value: 1 },
+        { text: '女', value: 2 }
       ],
       showSex: false,
       avatar: '',
@@ -72,7 +71,7 @@ export default {
     avatarAfterRead(file) {
       console.log(file);
     },
-    onSexConfirm(value, index) {
+    onSexConfirm() {
       this.showSex = false;
     },
     getUserInfo() {

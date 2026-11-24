@@ -39,6 +39,7 @@ import { catalogList, catalogCurrent } from '@/api/api';
 import { Search } from 'vant';
 
 export default {
+  name: 'tabbar-catalog',
   data() {
     return {
       categoryList: [],

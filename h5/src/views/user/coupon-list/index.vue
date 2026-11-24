@@ -1,18 +1,18 @@
 <template>
   <div class="coupon_list">
-    <van-tabs v-model="activeIndex"
+    <van-tabs v-model:active="activeIndex"
               type="card"
               sticky
               @click="handleTabClick">
       <van-tab v-for="(tabTitle, tabIndex) in tabTitles"
                :title="tabTitle"
                :key="tabIndex">
-        <van-list v-model="loading"
+        <van-list v-model:loading="loading"
                   :finished="finished"
                   :immediate-check="false"
                   finished-text="没有更多了"
                   @load="getCouponList">
-          <van-panel style=" padding-bottom: 10px;">
+          <div style=" padding-bottom: 10px;">
             <div class="van-coupon-item"
                  v-for="(coupon,index) in couponList"
                  :key="index">
@@ -32,7 +32,7 @@
               </div>
 
             </div>
-          </van-panel>
+          </div>
         </van-list>
       </van-tab>
     </van-tabs>
@@ -42,7 +42,7 @@
 <script>
 import { couponMyList } from '@/api/api';
 
-import { Tab, Tabs, Panel, Card, List, CouponCell, CouponList } from 'vant';
+import { Tab, Tabs, Card, List, CouponCell, CouponList } from 'vant';
 import _ from 'lodash';
 
 export default {

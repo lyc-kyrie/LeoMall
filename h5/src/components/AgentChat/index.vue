@@ -84,6 +84,7 @@
 
 <script>
 import { agentChat, agentHistory, agentClear, agentClick } from '@/api/agent'
+import goodsDefaultImg from '@/assets/images/goods_default.png'
 
 const STORAGE_KEY = 'agentSessionId'
 
@@ -96,7 +97,7 @@ export default {
       inputText: '',
       sending: false,
       sessionId: '',
-      defaultGoodsImg: require('@/assets/images/goods_default.png')
+      defaultGoodsImg: goodsDefaultImg
     }
   },
   created() {

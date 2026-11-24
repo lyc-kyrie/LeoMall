@@ -14,6 +14,7 @@ import couponGroup from './tabbar-user-coupon';
 import userModule from './tabbar-user-module';
 
 export default {
+  name: 'tabbar-user',
   data() {
     return {
       isLogin: false

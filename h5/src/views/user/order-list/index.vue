@@ -1,27 +1,29 @@
 <template>
   <div class="order_list">
-    <van-tabs v-model="activeIndex"
+    <van-tabs v-model:active="activeIndex"
               :swipe-threshold="5"
               @click="handleTabClick">
       <van-tab v-for="(tabTitle, index) in tabTitles"
                :title="tabTitle"
                :key="index">
-        <van-list v-model="loading"
+        <van-list v-model:loading="loading"
                   :finished="finished"
                   :immediate-check="false"
                   finished-text="没有更多了"
                   @load="getOrderList">
-          <van-panel v-for="(el, i) in orderList"
+          <div class="order-panel" v-for="(el, i) in orderList"
                      :key="i"
-                     :title="'订单编号: ' + el.orderSn"
-                     :status="el.orderStatusText"
-                     @click.native="toOrderDetail(el.id)">
+                     @click="toOrderDetail(el.id)">
+            <div class="order-panel__head">
+              <span>订单编号: {{el.orderSn}}</span>
+              <span class="order-panel__status">{{el.orderStatusText}}</span>
+            </div>
             <van-card v-for="(goods, goodsI) in el.goodsList"
                       :key="goodsI"
                       :title="goods.goodsName"
                       :num="goods.number"
                       :thumb="goods.picUrl">
-              <div slot="desc">
+              <template #desc>
                 <div class="desc">
                   <van-tag plain
                            style="margin-right:6px;"
@@ -30,12 +32,11 @@
                     {{spec}}
                   </van-tag>
                 </div>
-              </div>
+              </template>
             </van-card>
-            <div class="total">合计: {{el.actualPrice * 100 | yuan}}（含运费{{el.post_fee | yuan}}）</div>
+            <div class="total">合计: {{ yuan(el.actualPrice * 100) }}（含运费{{ yuan(el.post_fee) }}）</div>
 
-            <div slot="footer"
-                 class="footer_btn">
+            <div class="footer_btn">
               <van-button size="small"
                           v-if="el.handleOption.cancel"
                           @click.stop="cancelOrder(el.id)">取消订单</van-button>
@@ -59,7 +60,7 @@
                           @click.stop="commentOrder(el.id)">去评价</van-button>
             </div>
 
-          </van-panel>
+          </div>
 
         </van-list>
 
@@ -71,7 +72,7 @@
 <script>
 import { orderList, orderDelete, orderConfirm, orderCancel, orderRefund } from '@/api/api';
 import _ from 'lodash';
-import { Tab, Tabs, Panel, Card, List, Tag } from 'vant';
+import { Tab, Tabs, Card, List, Tag, showToast, showConfirmDialog } from 'vant';
 
 export default {
   name: 'order-list',
@@ -117,47 +118,43 @@ export default {
     },
     delOrder(id) {
       let that = this;
-      this.$dialog
-        .confirm({ message: '确定要删除该订单吗?' })
+      showConfirmDialog({ message: '确定要删除该订单吗?' })
         .then(() => {
           orderDelete({ orderId: id }).then(() => {
             this.init();
-            this.$toast('已删除订单');
+            showToast('已删除订单');
           });
         })
         .catch(() => {});
     },
     cancelOrder(id) {
-      this.$dialog
-        .confirm({ message: '确定要取消该订单吗?' })
+      showConfirmDialog({ message: '确定要取消该订单吗?' })
         .then(() => {
           orderCancel({ orderId: id }).then(() => {
             this.init();
-            this.$toast('已取消该订单');
+            showToast('已取消该订单');
           });
         })
         .catch(() => {});
     },
     refundOrder(id) {
-      this.$dialog
-        .confirm({ message: '确定要申请退款吗?' })
+      showConfirmDialog({ message: '确定要申请退款吗?' })
         .then(() => {
           orderRefund({ orderId: id }).then(() => {
             this.init();
-            this.$toast('已申请订单退款');
+            showToast('已申请订单退款');
           });
         })
         .catch(() => {});
     },    
     confirmOrder(id) {
-      this.$dialog
-        .confirm({
+      showConfirmDialog({
           message: '请确认收到货物, 确认收货后无法撤销!'
         })
         .then(() => {
           orderConfirm({ orderId: id }).then(() => {
             this.init();
-            this.$toast('已确认收货');
+            showToast('已确认收货');
           });
         })
         .catch(() => {});

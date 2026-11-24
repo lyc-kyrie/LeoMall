@@ -1,49 +1,46 @@
 <template>
 	<div class="login">
-    	<div class="store_header">
-		<div class="store_avatar">
-			<img src="../../assets/images/avatar_default.png" alt="头像" width="55" height="55">
+		<div class="brand_header">
+			<div class="brand_mark">L</div>
+			<div class="brand_name">LeoMall</div>
+			<div class="brand_slogan">品质生活 · 居家严选</div>
 		</div>
-		<div class="store_name">LeoMall</div>
-	</div>
 
-    <md-field-group>
-      <md-field
-        v-model="account"
-        icon="username"
-        placeholder="请输入账号"
-        right-icon="clear-full"
-        name="user"
-        data-vv-as="帐号"
-        @right-click="clearText"
-      />
+		<div class="login_card">
+			<md-field-group>
+				<md-field
+					v-model="account"
+					icon="username"
+					placeholder="请输入账号"
+					right-icon="clear-full"
+					name="user"
+					@right-click="clearText"
+				/>
 
-      <md-field
-        v-model="password"
-        icon="lock"
-        placeholder="请输入密码"
-        :type="visiblePass ? 'text' : 'password'"
-        :right-icon="visiblePass ? 'eye-open' : 'eye-close'"
-        data-vv-as="密码"
-        name="password"
-        @right-click="visiblePass = !visiblePass"
-      />
+				<md-field
+					v-model="password"
+					icon="lock"
+					placeholder="请输入密码"
+					:type="visiblePass ? 'text' : 'password'"
+					:right-icon="visiblePass ? 'eye-open' : 'eye-close'"
+					name="password"
+					@right-click="visiblePass = !visiblePass"
+				/>
 
-      <div class="clearfix">
-        <div class="float-l">
-          <router-link to="/login/registerGetCode">免费注册</router-link>
-        </div>
-        <div class="float-r">
-          <router-link to="/login/forget">忘记密码</router-link>
-        </div>
-      </div>
+				<div class="link_row clearfix">
+					<div class="float-l">
+						<router-link to="/login/registerGetCode">免费注册</router-link>
+					</div>
+					<div class="float-r">
+						<router-link to="/login/forget">忘记密码</router-link>
+					</div>
+				</div>
 
-      <van-button size="large" type="danger" :loading="isLogining" @click="loginSubmit">登录</van-button>
-    </md-field-group>
+				<van-button round block type="danger" :loading="isLogining" @click="loginSubmit">登录</van-button>
+			</md-field-group>
+		</div>
 
-
-      <div class="text-desc text-center bottom_positon">技术支持: LeoMall</div>
-
+		<div class="text-desc text-center login_footer">技术支持: LeoMall</div>
 	</div>
 </template>
 
@@ -55,15 +52,14 @@ import { authLoginByAccount } from '@/api/api';
 import { setLocalStorage } from '@/utils/local-storage';
 import { emailReg, mobileReg } from '@/utils/validate';
 
-import { Toast } from 'vant';
+import { showFailToast } from 'vant';
 
 
 export default {
   name: 'login-request',
   components: {
     [field.name]: field,
-    [fieldGroup.name]: fieldGroup,
-    Toast
+    [fieldGroup.name]: fieldGroup
   },
   data() {
     return {
@@ -96,7 +92,7 @@ export default {
 
         this.routerRedirect();
       }).catch(error => {
-        Toast.fail(error.data.errmsg);
+        showFailToast(error.data.errmsg);
       });
     },
 
@@ -113,11 +109,6 @@ export default {
     },
 
     routerRedirect() {
-      // const { query } = this.$route;
-      // this.$router.replace({
-      //   name: query.redirect || 'home',
-      //   query: query
-      // });
       window.location = '#/user/';
     },
 
@@ -144,41 +135,59 @@ export default {
 
 
 <style lang="scss" scoped>
-@import '../../assets/scss/mixin';
 .login {
   position: relative;
-  background-color: #fff;
+  min-height: 100vh;
+  background: var(--bg);
+  padding: var(--space-8) var(--space-4) var(--space-6);
 }
-.store_header {
+
+.brand_header {
   text-align: center;
-  padding: 30px 0;
-  .store_avatar img {
-    border-radius: 50%;
+  padding: var(--space-6) 0 var(--space-8);
+  .brand_mark {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--brand), var(--brand-deep));
+    color: #fff;
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 64px;
+    box-shadow: var(--shadow-2);
   }
-  .store_name {
-    padding-top: 5px;
-    font-size: 16px;
+  .brand_name {
+    padding-top: var(--space-3);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-1);
+    letter-spacing: .5px;
+  }
+  .brand_slogan {
+    padding-top: var(--space-1);
+    font-size: 13px;
+    color: var(--text-3);
   }
 }
-.register {
-  padding-top: 40px;
-  color: $font-color-gray;
+
+.login_card {
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-6) var(--space-4);
+}
+
+.link_row {
+  padding: var(--space-3) 0 var(--space-4);
   a {
-    color: $font-color-gray;
-  }
-  > div {
-    width: 50%;
-    box-sizing: border-box;
-    padding: 0 20px;
-  }
-  .connect {
-    @include one-border(right);
-    text-align: right;
+    font-size: 13px;
+    color: var(--text-3);
   }
 }
-.bottom_positon {
-  position: absolute;
-  bottom: 30px;
-  width: 100%;
+
+.login_footer {
+  padding-top: var(--space-8);
+  color: var(--text-3);
 }
 </style>

@@ -1,180 +1,137 @@
 <template>
   <div class="tab_home">
-    <div class="tal_class_searchBox">
-      <van-search placeholder="点击前往搜索"
+    <div class="home_search">
+      <van-search shape="round"
+                  placeholder="点击前往搜索"
+                  background="transparent"
                   @click="$router.push({ name: 'search' })" />
-      <div class="tal_class_searchMask"></div>
     </div>
-    <van-swipe :autoplay="3000"
-               indicator-color="white">
-      <van-swipe-item v-for="(banner, index) in shopInfos.banner"
-                      :key="index">
-        <img :src="banner.url"
-             style="display:block;width:100%;height:230px;object-fit:cover">
-      </van-swipe-item>
-    </van-swipe>
 
-    <div class="goods-channel">
-      <div class="item"
+    <div class="home_banner">
+      <van-swipe :autoplay="3000"
+                 indicator-color="#D93A3A">
+        <van-swipe-item v-for="(banner, index) in shopInfos.banner"
+                        :key="index">
+          <img :src="banner.url" class="banner_img" alt="">
+        </van-swipe-item>
+      </van-swipe>
+    </div>
+
+    <div class="kingkong">
+      <div class="kk_item"
            @click="changeTabbar(channel)"
            v-for="(channel, index) in shopInfos.channel"
            :key="index">
-        <img :src="channel.iconUrl"
-             background-size="cover" />
+        <div class="kk_tile">
+          <img :src="channel.iconUrl" alt="">
+        </div>
         <span>{{channel.name}}</span>
       </div>
     </div>
 
-    <van-panel title="优惠券"
-               style=" padding-bottom: 10px;">
-      <div class="van-coupon-item"
+    <div class="sec_head">
+      <span class="sec_title">优惠券</span>
+    </div>
+    <div class="ticket_row">
+      <div class="ticket"
            v-for="(coupon,index) in shopInfos.couponList"
            :key="index"
            @click="getCoupon(coupon.id)">
-        <div class="van-coupon-item__content">
-          <div class="van-coupon-item__head">
-            <h2>
-              <span>¥</span>
-              {{coupon.discount}} 元
-            </h2>
-            <p>{{coupon.desc }} - {{coupon.tag}}</p>
-          </div>
-          <div class="van-coupon-item__body">
-            <h2>{{coupon.name}}</h2>
-            <p>有效期：{{coupon.days}} 天</p>
+        <div class="ticket_amount"><span class="cur">¥</span>{{coupon.discount}}</div>
+        <div class="ticket_body">
+          <div class="ticket_name">{{coupon.name}}</div>
+          <div class="ticket_desc">{{coupon.desc}} · {{coupon.tag}}</div>
+          <div class="ticket_desc">有效期 {{coupon.days}} 天</div>
+        </div>
+        <div class="ticket_btn">领取</div>
+      </div>
+    </div>
 
+    <div class="sec_head" v-if="shopInfos.grouponList && shopInfos.grouponList.length">
+      <span class="sec_title">团购专区</span>
+      <router-link to="/items/groupon" class="sec_more">更多团购商品</router-link>
+    </div>
+    <div class="hcard_list" v-if="shopInfos.grouponList && shopInfos.grouponList.length">
+      <a class="hcard"
+         v-for="(grouponGood ,index) in shopInfos.grouponList"
+         :key="index"
+         :href="goDetail(grouponGood.id)">
+        <img :src="grouponGood.picUrl" alt="">
+        <div class="hcard_body">
+          <div class="hcard_title">{{grouponGood.name}}</div>
+          <div class="hcard_tags">
+            <van-tag plain type="primary">{{grouponGood.grouponMember}}人成团</van-tag>
+            <van-tag plain type="danger">{{grouponGood.grouponDiscount}}元再减</van-tag>
+          </div>
+          <div class="price_row">
+            <span class="price_now">¥{{grouponGood.grouponPrice}}</span>
+            <span class="price_origin">¥{{grouponGood.retailPrice}}</span>
           </div>
         </div>
+      </a>
+    </div>
 
-      </div>
-    </van-panel>
+    <div class="sec_head">
+      <span class="sec_title">品牌商直供</span>
+      <router-link to="/items/brand-list" class="sec_more">更多品牌商</router-link>
+    </div>
+    <div class="hscroll_row">
+      <a class="brand_card"
+         v-for="(brand ,index) in shopInfos.brandList"
+         :key="index"
+         :href="goBrand(brand.id)">
+        <img :src="brand.picUrl" alt="">
+        <span>{{ brand.name }}</span>
+      </a>
+    </div>
 
-    <van-panel>
-      <van-card :thumb-link="goDetail(grouponGood.id)"
-                v-for="(grouponGood ,index) in shopInfos.grouponList"
-                :key="index"
-                :title="grouponGood.name"
-                :desc="grouponGood.brief"
-                :origin-price="grouponGood.retailPrice"
-                :price="grouponGood.grouponPrice +'.00'"
-                :thumb="grouponGood.picUrl"
-                @native-click="goDetail(grouponGood.id)">
-        <div slot="tags"
-             class="card__tags">
-          <van-tag plain
-                   type="primary">
-            {{grouponGood.grouponMember}}人成团
-          </van-tag>
-          <van-tag plain
-                   type="danger">
-            {{grouponGood.grouponDiscount}}元再减
-          </van-tag>
+    <div class="sec_head">
+      <span class="sec_title">新品首发</span>
+      <router-link to="/items/new" class="sec_more">更多新品首发</router-link>
+    </div>
+    <div class="gcard_grid">
+      <router-link class="gcard"
+                   v-for="(newGood ,index) in shopInfos.newGoodsList"
+                   :key="index"
+                   :to="{ path: `/items/detail/${newGood.id}`}">
+        <img :src="newGood.picUrl" alt="">
+        <div class="gcard_name">{{newGood.name}}</div>
+        <div class="gcard_price">¥{{newGood.retailPrice}}</div>
+      </router-link>
+    </div>
+
+    <div class="sec_head">
+      <span class="sec_title">人气推荐</span>
+      <router-link to="/items/hot" class="sec_more">更多人气推荐</router-link>
+    </div>
+    <div class="gcard_grid">
+      <router-link class="gcard"
+                   v-for="(groupGood ,index) in shopInfos.hotGoodsList"
+                   :key="index"
+                   :to="{ path: `/items/detail/${groupGood.id}`}">
+        <img :src="groupGood.picUrl" alt="">
+        <div class="gcard_name">{{groupGood.name}}</div>
+        <div class="gcard_price">
+          ¥{{groupGood.retailPrice}}
+          <span class="price_origin">¥{{groupGood.counterPrice}}</span>
         </div>
-      </van-card>
-      <div slot='header'>
-        <van-cell-group>
-          <van-cell title="团购专区"
-                    isLink>
-            <router-link to="/items/groupon"
-                         class="text-desc">更多团购商品</router-link>
-          </van-cell>
-        </van-cell-group>
-      </div>
-    </van-panel>
+      </router-link>
+    </div>
 
-    <van-panel>
-      <van-grid clickable
-                :column-num="2">
-        <van-grid-item v-for="(brand ,index) in shopInfos.brandList"
-                       :key="index"
-                       :text="brand.name"
-                       :url="goBrand(brand.id)">
-          <img :src="brand.picUrl"
-               style="width: 80%;" />
-          <div style="font-size:16px;"> {{ brand.name }}</div>
-        </van-grid-item>
-      </van-grid>
-      <div slot='header'>
-        <van-cell-group>
-          <van-cell title="品牌商直供"
-                    isLink>
-            <router-link to="/items/brand-list"
-                         class="text-desc">更多品牌商</router-link>
-          </van-cell>
-        </van-cell-group>
-      </div>
-    </van-panel>
-
-    <van-panel>
-      <van-row gutter>
-        <van-col span="12"
-                 v-for="(newGood ,index) in shopInfos.newGoodsList"
-                 :key="index">
-          <router-link :to="{ path: `/items/detail/${newGood.id}`}">
-            <img :src="newGood.picUrl"
-                 style="width:180px;height:180px;">
-          </router-link>
-          <span style="padding-left: 20px;position: relative;bottom: 10px; color: rgb(123, 116, 116);white-space: nowrap;">{{newGood.name}}</span>
-          <span style="padding-left: 80px;position: relative;bottom: 10px; color:#ab956d">￥ {{newGood.retailPrice}}</span>
-        </van-col>
-      </van-row>
-      <div slot='header'>
-        <van-cell-group>
-          <van-cell title="新品首发"
-                    isLink>
-            <router-link to="/items/new"
-                         class="text-desc">更多新品首发</router-link>
-          </van-cell>
-        </van-cell-group>
-      </div>
-    </van-panel>
-
-    <van-panel>
-      <van-card :thumb-link="goDetail(groupGood.id)"
-                v-for="(groupGood ,index) in shopInfos.hotGoodsList"
-                :key="index"
-                :title="groupGood.name"
-                :desc="groupGood.brief"
-                :origin-price="groupGood.counterPrice"
-                :price="groupGood.retailPrice +'.00'"
-                :thumb="groupGood.picUrl"
-                @native-click="goDetail(groupGood.id)">
-        <!-- <div slot="footer">添加日期 {{item.addTime}}</div> -->
-      </van-card>
-      <div slot='header'>
-        <van-cell-group>
-          <van-cell title="人气推荐"
-                    isLink>
-            <router-link to="/items/hot"
-                         class="text-desc">更多人气推荐</router-link>
-          </van-cell>
-        </van-cell-group>
-      </div>
-    </van-panel>
-
-<van-panel>
-      <van-grid clickable
-                :column-num="2">
-        <van-grid-item v-for="(topic ,index) in shopInfos.topicList"
-                       :key="index"
-                       :url="goTopic(topic.id)">
-          <img :src="topic.picUrl"
-               style="width: 90%; max-height: 150px;" />
-          <div style="font-size:14px;color:#ab956d;"> {{ topic.title }}</div>
-          <div style="font-size:10px;color:#ab956d;"> {{ topic.subtitle }}</div>
-        </van-grid-item>
-      </van-grid>
-      <div slot='header'>
-        <van-cell-group>
-          <van-cell title="专题精选"
-                    isLink>
-            <router-link to="/items/topic-list"
-                         class="text-desc">更多专题精选</router-link>
-          </van-cell>
-        </van-cell-group>
-      </div>
-    </van-panel>
-
+    <div class="sec_head">
+      <span class="sec_title">专题精选</span>
+      <router-link to="/items/topic-list" class="sec_more">更多专题精选</router-link>
+    </div>
+    <div class="hscroll_row">
+      <a class="topic_card"
+         v-for="(topic ,index) in shopInfos.topicList"
+         :key="index"
+         :href="goTopic(topic.id)">
+        <img :src="topic.picUrl" alt="">
+        <div class="topic_title">{{ topic.title }}</div>
+        <div class="topic_sub">{{ topic.subtitle }}</div>
+      </a>
+    </div>
   </div>
 </template>
 
@@ -183,26 +140,10 @@ import { getHome, goodsCategory, couponReceive } from '@/api/api';
 import scrollFixed from '@/mixin/scroll-fixed';
 import _ from 'lodash';
 
-import {
-  List,
-  Swipe,
-  SwipeItem,
-  Tabbar,
-  TabbarItem,
-  Search,
-  Panel,
-  CouponCell,
-  CouponList,
-  Toast,
-  Card,
-  Grid,
-  GridItem,
-  Row,
-  Col,
-  Tag
-} from 'vant';
+import { Swipe, SwipeItem, Search, Tag, showSuccessToast } from 'vant';
 
 export default {
+  name: 'tabbar-home',
   mixins: [scrollFixed],
 
   data() {
@@ -225,10 +166,10 @@ export default {
     },
     goTopic(id) {
       return `#/items/topic/${id}`;
-    },    
+    },
     getCoupon(id) {
       couponReceive({ couponId: id }).then(res => {
-        Toast.success('领取成功');
+        showSuccessToast('领取成功');
       });
     },
     changeTabbar(o) {
@@ -248,187 +189,327 @@ export default {
   },
 
   components: {
-    [Row.name]: Row,
-    [Col.name]: Col,
-    [Card.name]: Card,
-    [Toast.name]: Toast,
-    [CouponCell.name]: CouponCell,
-    [CouponList.name]: CouponList,
     [Search.name]: Search,
-    [Panel.name]: Panel,
-    [List.name]: List,
     [Swipe.name]: Swipe,
     [SwipeItem.name]: SwipeItem,
-    [Tabbar.name]: Tabbar,
-    [TabbarItem.name]: TabbarItem,
-    [Tag.name]: Tag,
-    [Grid.name]: Grid,
-    [GridItem.name]: GridItem
+    [Tag.name]: Tag
   }
 };
 </script>
 
 
 <style lang="scss" scoped>
-.interval_bot {
-  margin-bottom: 10px;
+.tab_home {
+  padding-bottom: var(--space-6);
 }
-.van-panel {
-  margin-top: 20px;
+
+.home_search {
+  padding: var(--space-2) var(--space-2) 0;
 }
-.goods-channel {
-  background: #fff;
+
+.home_banner {
+  margin: 0 var(--space-4);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+  .banner_img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+  }
+}
+
+.kingkong {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  row-gap: var(--space-4);
+  padding: var(--space-4) var(--space-2) 0;
+  .kk_item {
+    text-align: center;
+    cursor: pointer;
+  }
+  .kk_tile {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto;
+    border-radius: var(--radius-card);
+    background: var(--brand-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    img {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+    }
+  }
+  span {
+    display: block;
+    margin-top: var(--space-2);
+    font-size: 12px;
+    color: var(--text-2);
+  }
+}
+
+.sec_head {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  padding-bottom: 0px;
-  padding-top: 10px;
+  padding: var(--space-6) var(--space-4) var(--space-3);
+  &::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    border-radius: 2px;
+    background: var(--brand);
+    margin-right: var(--space-2);
+  }
+  .sec_title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-1);
+  }
+  .sec_more {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-3);
+  }
 }
 
-.goods-channel .item {
-  width: 50px;
-  height: 50px;
-  margin-left: 10px;
-}
-
-.goods-channel img {
-  display: block;
-  width: 20px;
-  height: 20px;
-  margin: 0 auto;
-}
-
-.goods-channel span {
-  display: block;
-  font-size: 14px;
-  text-align: center;
-  margin-top: 5px;
-  margin-bottom: 10px;
-  color: #333;
-}
-.van-coupon-cell--selected {
-  color: #323233;
-}
-.van-coupon-list {
-  height: 100%;
-  position: relative;
-  background-color: #f8f8f8;
-}
-.van-coupon-list__field {
-  padding: 7px 15px;
-}
-.van-coupon-list__exchange {
-  height: 32px;
-  line-height: 30px;
-}
-.van-coupon-list__list {
-  overflow-y: auto;
-  padding: 15px 0;
-  -webkit-box-sizing: border-box;
-  box-sizing: border-box;
-  -webkit-overflow-scrolling: touch;
-}
-.van-coupon-list__close {
-  left: 0;
-  bottom: 0;
-  position: absolute;
-  font-weight: 500;
-}
-.van-coupon-list__empty {
-  padding-top: 100px;
-  text-align: center;
-}
-.van-coupon-list__empty p {
-  color: #969799;
-  margin: 15px 0;
-  font-size: 14px;
-  line-height: 20px;
-}
-.van-coupon-list__empty img {
-  width: 80px;
-  height: 84px;
-}
-.van-coupon-item {
-  overflow: hidden;
-  border-radius: 4px;
-  margin: 0 15px 15px;
-  background-color: #fff;
-  -webkit-box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.1);
-}
-.van-coupon-item:active {
-  background-color: #e8e8e8;
-}
-.van-coupon-item__content {
-  display: -webkit-box;
-  display: -ms-flexbox;
+.ticket_row {
   display: flex;
-  height: 100px;
-  padding: 24px 0 0 15px;
-  -webkit-box-sizing: border-box;
-  box-sizing: border-box;
-  border: 1px solid red;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding: 0 var(--space-4) var(--space-1);
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 }
-.van-coupon-item h2,
-.van-coupon-item p {
-  margin: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.van-coupon-item h2 {
-  height: 34px;
-  font-weight: 500;
-  line-height: 34px;
-}
-.van-coupon-item p {
-  font-size: 12px;
-  line-height: 16px;
-  color: #969799;
-}
-.van-coupon-item__head {
-  min-width: 90px;
-}
-.van-coupon-item__head h2 {
-  color: #f44;
-  font-size: 24px;
-}
-.van-coupon-item__head h2 span {
-  font-size: 50%;
-}
-.van-coupon-item__body {
-  -webkit-box-flex: 1;
-  -ms-flex: 1;
-  flex: 1;
+
+.ticket {
   position: relative;
-  border-radius: 0 4px 4px 0;
+  display: flex;
+  align-items: center;
+  min-width: 250px;
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-3);
+  cursor: pointer;
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 82px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--bg);
+  }
+  &::before { top: -5px; }
+  &::after { bottom: -5px; }
+  .ticket_amount {
+    width: 74px;
+    flex: none;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--brand);
+    font-variant-numeric: tabular-nums;
+    .cur { font-size: 13px; }
+  }
+  .ticket_body {
+    flex: 1;
+    min-width: 0;
+    border-left: 1px dashed var(--line);
+    padding-left: var(--space-3);
+  }
+  .ticket_name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ticket_desc {
+    font-size: 11px;
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ticket_btn {
+    flex: none;
+    margin-left: var(--space-2);
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--brand);
+    color: #fff;
+    font-size: 12px;
+  }
 }
-.van-coupon-item__body h2 {
+
+.hcard_list {
+  padding: 0 var(--space-4);
+}
+
+.hcard {
+  display: flex;
+  gap: var(--space-3);
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+  img {
+    width: 88px;
+    height: 88px;
+    flex: none;
+    border-radius: var(--radius-img);
+    object-fit: cover;
+  }
+  .hcard_body {
+    flex: 1;
+    min-width: 0;
+  }
+  .hcard_title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-1);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .hcard_tags {
+    padding: var(--space-1) 0;
+    display: flex;
+    gap: var(--space-1);
+  }
+}
+
+.price_row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.price_now {
   font-size: 16px;
+  font-weight: 700;
+  color: var(--brand);
+  font-variant-numeric: tabular-nums;
 }
-.van-coupon-item__corner {
-  top: 16px;
-  right: 15px;
-  position: absolute;
+
+.price_origin {
+  font-size: 12px;
+  color: var(--text-3);
+  text-decoration: line-through;
+  font-weight: 400;
 }
-.van-coupon-item__corner .van-icon {
-  border-color: #f44;
-  background-color: #f44;
+
+.hscroll_row {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding: 0 var(--space-4) var(--space-1);
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 }
-.van-coupon-item__reason {
-  padding: 7px 15px;
-  border-top: 1px dashed #ebedf0;
-  background-color: #fafafa;
+
+.brand_card {
+  flex: none;
+  width: 132px;
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-2);
+  text-align: center;
+  img {
+    width: 100%;
+    height: 76px;
+    object-fit: cover;
+    border-radius: var(--radius-img);
+  }
+  span {
+    display: block;
+    padding: var(--space-2) 0 var(--space-1);
+    font-size: 13px;
+    color: var(--text-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
-.van-coupon-item--disabled:active {
-  background-color: #fff;
+
+.gcard_grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
 }
-.van-coupon-item--disabled .van-coupon-item__content {
-  height: 90px;
+
+.gcard {
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+  img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+  }
+  .gcard_name {
+    padding: var(--space-2) var(--space-2) 0;
+    font-size: 13px;
+    color: var(--text-1);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 38px;
+  }
+  .gcard_price {
+    padding: var(--space-1) var(--space-2) var(--space-3);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--brand);
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
 }
-.van-coupon-item--disabled h2,
-.van-coupon-item--disabled p,
-.van-coupon-item--disabled span {
-  color: #969799;
+
+.topic_card {
+  flex: none;
+  width: 200px;
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-2);
+  img {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    border-radius: var(--radius-img);
+  }
+  .topic_title {
+    padding-top: var(--space-2);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .topic_sub {
+    font-size: 11px;
+    color: var(--text-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-bottom: var(--space-1);
+  }
 }
 </style>

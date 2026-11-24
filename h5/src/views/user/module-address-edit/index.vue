@@ -14,7 +14,7 @@
 </template>
 
 <script>
-import { AddressEdit, NavBar } from 'vant';
+import { AddressEdit, NavBar, showToast } from 'vant';
 import areaList from './area.json';
 import { addressDetail, addressSave, addressDelete } from '@/api/api';
 import { removeLocalStorage } from '@/utils/local-storage';
@@ -44,7 +44,7 @@ export default {
     },
     onSave(content) {
       addressSave(content).then(res => {
-        this.$toast('成功');
+        showToast('成功');
         this.$router.go(-1);
       });
     },

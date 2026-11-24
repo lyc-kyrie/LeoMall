@@ -5,7 +5,7 @@
       <van-cell title="意见反馈" to="/user/feedback" isLink></van-cell>
       <van-cell title="常见问题" to="/user/help" isLink/>
     </van-cell-group>
-    <van-popup v-model="showKefu">
+    <van-popup v-model:show="showKefu">
       <van-cell-group>
         <van-cell title="项目名称" value="leomall" />
         <van-cell title="联系电话" value="021-xxxx-xxxx" />

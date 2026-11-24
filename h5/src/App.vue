@@ -1,10 +1,11 @@
 <template>
 <div id="app">
   <v-header></v-header>
-  <keep-alive>
-    <router-view class="view-router"  v-if="$route.meta.keepAlive"></router-view>
-  </keep-alive>
-  <router-view class="view-router" v-if="!$route.meta.keepAlive"></router-view>
+  <router-view v-slot="{ Component }">
+    <keep-alive :include="['tabbar-home', 'tabbar-catalog', 'search-view', 'tabbar-user']">
+      <component :is="Component" class="view-router" />
+    </keep-alive>
+  </router-view>
   <router-view name="tabbar"></router-view>
   <agent-chat></agent-chat>
 </div>
@@ -20,4 +21,3 @@ export default {
   }
 }
 </script>
-<style lang="scss" src="./assets/scss/global.scss" />

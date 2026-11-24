@@ -11,10 +11,10 @@
 
       <van-cell-group>
         <van-cell title="商品金额">
-          <span class="red">{{orderInfo.goodsPrice * 100 | yuan}}</span>
+          <span class="red">{{ yuan(orderInfo.goodsPrice * 100) }}</span>
         </van-cell>
         <van-cell title="快递费用">
-          <span class="red">{{orderInfo.freightPrice * 100 | yuan}}</span>
+          <span class="red">{{ yuan(orderInfo.freightPrice * 100) }}</span>
         </van-cell>
       </van-cell-group>
     </div>
@@ -37,7 +37,7 @@
       </van-cell>
 
       <van-cell title="实付款：">
-        <span class="red">{{orderInfo.actualPrice * 100 | yuan}}</span>
+        <span class="red">{{ yuan(orderInfo.actualPrice * 100) }}</span>
       </van-cell>
       <!-- 订单动作 -->
       <van-cell>
@@ -84,7 +84,7 @@
 </template>
 
 <script>
-import { Card, Field, SubmitBar, Button, Cell, CellGroup, Dialog } from 'vant';
+import { Card, Field, SubmitBar, Button, Cell, CellGroup, Dialog, showToast, showConfirmDialog } from 'vant';
 import _ from 'lodash';
 import {
   orderDetail,
@@ -115,47 +115,43 @@ export default {
     },
     deleteOrder(id) {
       let that = this;
-      this.$dialog
-        .confirm({ message: '确定要删除该订单吗?' })
+      showConfirmDialog({ message: '确定要删除该订单吗?' })
         .then(() => {
           orderDelete({ orderId: id }).then(() => {
-            this.$toast('已删除订单');
+            showToast('已删除订单');
             this.$router.go(-1);
           });
         })
         .catch(() => {});
     },
     cancelOrder(id) {
-      this.$dialog
-        .confirm({ message: '确定要取消该订单吗?' })
+      showConfirmDialog({ message: '确定要取消该订单吗?' })
         .then(() => {
           orderDelete({ orderId: id }).then(() => {
             this.init();
-            this.$toast('已取消该订单');
+            showToast('已取消该订单');
           });
         })
         .catch(() => {});
     },
     confirmOrder(id) {
-      this.$dialog
-        .confirm({
+      showConfirmDialog({
           message: '请确认收到货物, 确认收货后无法撤销!'
         })
         .then(() => {
           orderConfirm({ orderId: id }).then(() => {
             this.init();
-            this.$toast('已确认收货');
+            showToast('已确认收货');
           });
         })
         .catch(() => {});
     },
     refundOrder(id) {
-      this.$dialog
-        .confirm({ message: '确定要申请退款吗?' })
+      showConfirmDialog({ message: '确定要申请退款吗?' })
         .then(() => {
           orderRefund({ orderId: id }).then(() => {
             this.init();
-            this.$toast('已申请订单退款');
+            showToast('已申请订单退款');
           });
         })
         .catch(() => {});
@@ -177,7 +173,6 @@ export default {
   },
 
   components: {
-    [Dialog.name]: Dialog,
     [CellGroup.name]: CellGroup,
     [Cell.name]: Cell,
     [Button.name]: Button,

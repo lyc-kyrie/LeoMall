@@ -25,7 +25,7 @@
       </div>
     </div>
 
-    <van-list v-model="loading"
+    <van-list v-model:loading="loading"
               :finished="finished"
               :immediate-check="false"
               @load="loadMore">
@@ -44,11 +44,12 @@
 </template>
 
 <script>
-import { Card, Search, Tag, List } from 'vant';
+import { Card, Search, Tag, List, showConfirmDialog } from 'vant';
 import { goodsList } from '@/api/api';
 import IsEmpty from '@/components/is-empty/';
 
 export default {
+  name: 'search-view',
   data() {
     return {
       keyword: '',
@@ -95,8 +96,7 @@ export default {
       return listWord ? listWord.split('|') : [];
     },
     clearHistory() {
-      this.$dialog
-        .confirm({
+      showConfirmDialog({
           message: '是否清空历史记录'
         })
         .then(() => {

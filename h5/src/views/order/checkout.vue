@@ -2,7 +2,7 @@
 <div class="order">
   <van-cell-group>
       <van-cell v-if="checkedAddress" isLink @click="goAddressList()" title="收货地址">
-      <div slot="label">
+      <template #label>
         <div>
          <span>{{ checkedAddress.name }} </span>
          <span>{{ checkedAddress.tel }} </span>
@@ -10,7 +10,7 @@
       <div>
         {{ checkedAddress.addressDetail }}
       </div>
-      </div>
+      </template>
     </van-cell>
   </van-cell-group>
 
@@ -19,7 +19,7 @@
   </van-cell-group>
 
 <!-- 优惠券列表 -->
-<van-popup v-model="showList" position="bottom">
+<van-popup v-model:show="showList" position="bottom">
   <van-coupon-list
     :coupons="coupons"
     :chosen-coupon="chosenCoupon"
@@ -37,27 +37,27 @@
       :price="item.price +'.00'"
       :thumb="item.picUrl"
     >
-      <div slot="desc">
+      <template #desc>
         <div class="van-card__desc">
           <van-tag plain style="margin-right:6px;" v-for="(spec, index) in item.specifications" :key="index">
             {{spec}}
           </van-tag>
         </div>
-      </div>
+      </template>
     </van-card>
 
     <van-cell-group>
       <van-cell title="商品金额">
-        <span class="red">{{goodsTotalPrice * 100 | yuan}}</span>
+        <span class="red">{{ yuan(goodsTotalPrice * 100) }}</span>
       </van-cell>
       <van-cell title="邮费">
-        <span class="red">{{ freightPrice * 100| yuan}}</span>
+        <span class="red">{{ yuan(freightPrice * 100) }}</span>
       </van-cell>
       <van-cell title="优惠券">
-        <span class="red">-{{ couponPrice * 100| yuan}}</span>
+        <span class="red">-{{ yuan(couponPrice * 100) }}</span>
       </van-cell>
       <van-field v-model="message" placeholder="请输入备注" label="订单备注">
-      <template slot="icon">{{message.length}}/50</template>
+      <template #extra>{{message.length}}/50</template>
       </van-field>      
     </van-cell-group>
 
@@ -72,7 +72,7 @@
 </template>
 
 <script>
-import { Card, Tag, ard, Field, SubmitBar, Toast  } from 'vant';
+import { Card, Tag, Field, SubmitBar, showToast } from 'vant';
 import { CouponCell, CouponList, Popup } from 'vant';
 import { cartCheckout, orderSubmit, couponSelectList} from '@/api/api';
 import { getLocalStorage, setLocalStorage } from '@/utils/local-storage';
@@ -108,7 +108,7 @@ export default {
       const {AddressId, CartId, CouponId, UserCouponId} = getLocalStorage('AddressId', 'CartId', 'CouponId', 'UserCouponId');
 
       if (AddressId === null || AddressId === "0") {
-        Toast.fail('请设置收货地址');
+        showFailToast('请设置收货地址');
         return;
       }
 
@@ -135,7 +135,7 @@ export default {
         });
       }).catch(error => {
         this.isDisabled = false;
-        this.$toast("下单失败");
+        showToast("下单失败");
       })
 
     },
@@ -220,12 +220,11 @@ export default {
       this.init()
     },
     onExchange() {
-      this.$toast("兑换暂不支持");
+      showToast("兑换暂不支持");
     }    
   },
 
   components: {
-    [Toast.name]: Toast ,
     [SubmitBar.name]: SubmitBar,
     [Card.name]: Card,
     [Field.name]: Field,

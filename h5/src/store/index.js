@@ -1,17 +1,14 @@
-import Vue from 'vue'
-import Vuex from 'vuex'
+import { createStore } from 'vuex'
 import * as getters from './getters'
 import mutations from './mutations'
-
-Vue.use(Vuex)
 
 const state = {
   showHeader:true,
   title:'' 
 }
 
-export default new Vuex.Store({
-  strict: process.env.NODE_ENV !== 'production',
+export default createStore({
+  strict: import.meta.env.DEV,
   state,
   getters,
   mutations

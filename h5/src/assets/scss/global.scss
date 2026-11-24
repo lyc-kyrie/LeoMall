@@ -2,18 +2,17 @@
 @import "mixin";
 
 @import "./common";
-@import "./vant-theme";
 
 * {
 	box-sizing: border-box;
 }
 
 a {
-	color: #000
+	color: var(--text-2);
 }
 
 input:-webkit-autofill {
-	-webkit-box-shadow: 0 0 0 1000px white inset;
+	-webkit-box-shadow: 0 0 0 1000px var(--card) inset;
 }
 
 html {
@@ -22,9 +21,10 @@ html {
 
 body {
 	overflow-x: hidden;
-	max-width: 700px;
+	max-width: var(--shell);
 	margin: 0 auto;
 	font-size: 14px;
+	background: var(--bg);
 }
 
 .view-router {
@@ -41,4 +41,52 @@ body {
 
 .scroll-wrap {
 	overflow-y: scroll;
+}
+
+/* 阶段2D-1：固定底栏/悬浮层改为壳内定位（消除桌面宽屏错位）
+   用 margin-left 而非 transform，避免破坏 Vant 弹层过渡动画 */
+.van-tabbar,
+.van-submit-bar,
+.van-action-bar,
+.van-popup--bottom {
+	left: 50%;
+	margin-left: calc(min(100%, var(--shell)) / -2);
+	width: min(100%, var(--shell));
+}
+
+/* 阶段2D-1：Vant4 主题映射（CSS variables 机制，替代 v2 类名 hack）
+   加载序在 vant/lib/index.css 之后，同特异性稳定胜出 */
+:root {
+	--van-primary-color: var(--brand);
+	--van-danger-color: var(--brand);
+	--van-success-color: var(--success);
+	--van-warning-color: var(--warning);
+	--van-gradient-red: var(--brand);
+	--van-gradient-orange: var(--brand);
+	--van-text-color: var(--text-1);
+	--van-text-color-2: var(--text-2);
+	--van-text-color-3: var(--text-3);
+	--van-border-color: var(--line);
+	--van-background: var(--bg);
+	--van-background-2: var(--card);
+	--van-background-3: var(--card);
+	--van-radius-md: var(--radius-ctl);
+	--van-radius-lg: var(--radius-card);
+	--van-tabbar-item-active-color: var(--brand);
+	--van-swipe-indicator-active-background: var(--brand);
+	--van-card-background: var(--card);
+	--van-card-price-color: var(--brand);
+	--van-submit-bar-price-color: var(--brand);
+	--van-button-danger-background: var(--brand);
+	--van-button-danger-border-color: var(--brand);
+	--van-button-primary-background: var(--brand);
+	--van-button-primary-border-color: var(--brand);
+	--van-action-bar-button-danger-color: var(--brand);
+	--van-action-bar-button-warning-color: var(--card);
+}
+
+/* 加购 CTA：白底红描边（Vant4 warning 钮文字默认白色，需随底反转） */
+.van-action-bar-button--warning {
+	color: var(--brand);
+	border: 1px solid var(--brand);
 }

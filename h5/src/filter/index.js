@@ -6,9 +6,10 @@ export const dateFormat = (value, format = 'YYYY-MM-DD') =>
 export const yuan = value =>
   isNumber(value) ? `¥${(value / 100).toFixed(2)}` : value;
 
+// Vue3 无 filters：main.js 挂到 globalProperties，模板以方法形式调用
 export default {
-  install(Vue) {
-    Vue.filter('yuan', yuan);
-    Vue.filter('dateFormat', dateFormat);
+  install(app) {
+    app.config.globalProperties.yuan = yuan;
+    app.config.globalProperties.dateFormat = dateFormat;
   }
 };

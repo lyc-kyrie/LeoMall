@@ -1,6 +1,6 @@
 <template>
   <div class="user_collect">
-    <van-list v-model="loading"
+    <van-list v-model:loading="loading"
               :finished="finished"
               :immediate-check="false"
               finished-text="没有更多了"
@@ -13,11 +13,11 @@
                 :price="item.retailPrice"
                 :origin-price="item.counterPrice"
                 @click="itemClick(item.valueId)">
-        <div slot="footer">
+        <template #footer>
           <van-button size="mini"
                       icon="lajitong"
                       @click.stop="cancelCollect($event, i,item)">删除</van-button>
-        </div>
+        </template>
       </van-card>
     </van-list>
 
@@ -29,7 +29,7 @@
 <script>
 import { collectList, collectAddOrDelete } from '@/api/api';
 import IsEmpty from '@/components/is-empty/';
-import { Card, Search, List } from 'vant';
+import { Card, Search, List, showConfirmDialog } from 'vant';
 import scrollFixed from '@/mixin/scroll-fixed';
 
 export default {
@@ -64,7 +64,7 @@ export default {
       });
     },
     cancelCollect(event, i, item) {
-      this.$dialog.confirm({ message: '是否取消收藏该商品' }).then(() => {
+      showConfirmDialog({ message: '是否取消收藏该商品' }).then(() => {
         collectAddOrDelete({ valueId: item.valueId, type: 0 }).then(res => {
           this.list.splice(i, 1);
         });

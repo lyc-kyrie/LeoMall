@@ -22,14 +22,14 @@
 <van-button size="large" type="primary" @click="submit">提交</van-button>
 
 
-<van-popup v-model="showList" position="bottom">
+<van-popup v-model:show="showList" position="bottom">
 <van-picker :columns="types" @change="onType" />
 </van-popup>
   </div>
 </template>
 
 <script>
-import { Field , Picker, Popup, Button } from 'vant';
+import { Field, Picker, Popup, Button, showToast } from 'vant';
 import { feedbackAdd } from '@/api/api';
 
 export default {
@@ -38,32 +38,32 @@ export default {
       mobile: '',
       content: '',
       showList: false,
-      types:['商品相关', '功能异常', '优化建议', '其他'],
+      types: ['商品相关', '功能异常', '优化建议', '其他'].map(t => ({ text: t, value: t })),
       type: ''
     };
   },
   created() {
   },
   methods: {
-    onType(picker, value, index) {
-      this.type = value
+    onType({ selectedValues }) {
+      this.type = selectedValues[0]
       this.showList = false
     },
     submit() {
       if(this.mobile === ''){
-        this.$toast("请输入联系电话");
+        showToast("请输入联系电话");
         return;
       }
       if(this.type === ''){
-        this.$toast("请选择反馈类型");
+        showToast("请选择反馈类型");
         return;
       }
       if(this.content === ''){
-        this.$toast("请输入反馈内容");
+        showToast("请输入反馈内容");
         return;
       }      
       feedbackAdd({ mobile: this.mobile, feedType: this.type, content: this.content}).then(res => {
-        this.$toast("感谢您的宝贵意见！");
+        showToast("感谢您的宝贵意见！");
         this.$router.go(-1);
       })
     }

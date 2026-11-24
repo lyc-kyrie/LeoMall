@@ -9,17 +9,17 @@
         <van-checkbox :key="item.id" :name="item.id" v-model="item.checked"></van-checkbox>
 
         <van-card :title="item.goodsName" :price="item.price" :num="item.number" :thumb="item.picUrl">
-          <div slot="desc">
+          <template #desc>
             <div class="van-card__desc">
               <van-tag plain style="margin-right:6px;" v-for="(spec, index) in item.specifications" :key="index">
                 {{spec}}
               </van-tag>
             </div>
-          </div>
-          <div slot="footer" v-if="isEditor">
-            <van-stepper v-model="item.number" @change="stepperEvent(item,arguments)" disableInput/>
-          </div>
-          <div slot="footer" v-else>添加日期 {{item.addTime}}</div>
+          </template>
+          <template #footer v-if="isEditor">
+            <van-stepper v-model="item.number" @change="val => stepperEvent(item, val)" disableInput/>
+          </template>
+          <template #footer v-else>添加日期 {{item.addTime}}</template>
         </van-card>
 
         <div class="cart_delete" v-if="isEditor" @click="deleteCart(i)">删除</div>
@@ -43,7 +43,7 @@
 </template>
 
 <script>
-import { Checkbox, CheckboxGroup, Card, SubmitBar, Stepper, Tag } from 'vant';
+import { Checkbox, CheckboxGroup, Card, SubmitBar, Stepper, Tag, showConfirmDialog } from 'vant';
 import { cartList, cartUpdate, cartChecked, cartDelete} from '@/api/api';
 import { setLocalStorage } from '@/utils/local-storage';
 
@@ -81,8 +81,7 @@ export default {
   },
 
   methods: {
-    stepperEvent(item, arg) {
-      let number = arg[0];
+    stepperEvent(item, number) {
       cartUpdate({
         number: number,
         goodsId: item.goodsId,
@@ -124,8 +123,7 @@ export default {
         );
       });
       if (this.isEditor) {
-        this.$dialog
-          .confirm({
+        showConfirmDialog({
             message: '确定删除所选商品吗?',
             cancelButtonText: '再想想'
           })
@@ -147,8 +145,7 @@ export default {
     },
     deleteCart(o) {
       let productId = this.goods[o].productId;
-      this.$dialog
-        .confirm({ message: '确定删除所选商品吗', cancelButtonText: '再想想' })
+      showConfirmDialog({ message: '确定删除所选商品吗', cancelButtonText: '再想想' })
         .then(() => {
           this.$nextTick(() => {
             this.deleteNext(productId);

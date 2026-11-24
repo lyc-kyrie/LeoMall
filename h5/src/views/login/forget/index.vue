@@ -10,12 +10,14 @@
 			icon="lock"
 			placeholder="请输入短信验证码"
 		>
-			<div slot="rightIcon" @click="getCode" class="getCode red">
-				<countdown v-if="counting" :time="60000" @end="countdownend">
-				  <template slot-scope="props">{{ +props.seconds || 60 }}秒后获取</template>
-				</countdown>
-				<span v-else>获取验证码</span>
-			</div>
+			<template #rightIcon>
+				<div @click="getCode" class="getCode red">
+					<countdown v-if="counting" :time="60000" @end="countdownend">
+					  <template #default="props">{{ +props.seconds || 60 }}秒后获取</template>
+					</countdown>
+					<span v-else>获取验证码</span>
+				</div>
+			</template>
 		</md-field >
 
 		<div class="foget_submit">

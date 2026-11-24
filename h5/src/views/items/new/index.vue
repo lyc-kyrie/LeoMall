@@ -4,7 +4,7 @@
       <div class="title">新品首发</div>
     </div>
 
-    <van-list v-model="loading"
+    <van-list v-model:loading="loading"
               :finished="finished"
               :immediate-check="false"
               finished-text="没有更多了"
