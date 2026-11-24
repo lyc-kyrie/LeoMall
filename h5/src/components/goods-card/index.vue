@@ -1,7 +1,7 @@
 <template>
   <div class="gcard" @click="$emit('click', goods.id)">
     <div class="gcard_img">
-      <img v-lazy="goods.picUrl" :alt="goods.name">
+      <img v-lazy="goods.picUrl" :alt="goods.name" @error="onImgError">
     </div>
     <div class="gcard_body">
       <div class="gcard_title">{{ goods.name }}</div>
@@ -19,12 +19,22 @@
 
 <script>
 // 阶段2D-2：共用商品卡（1:1 图 + 两行题 + 标签 + 红价），搜索/列表复用
+import goodsDefaultImg from '@/assets/images/goods_default.png';
+
 export default {
   name: 'GoodsCard',
   props: {
     goods: { type: Object, required: true }
   },
-  emits: ['click']
+  emits: ['click'],
+  methods: {
+    onImgError(e) {
+      const el = e.target;
+      if (el.dataset.fallbacked) return;
+      el.dataset.fallbacked = '1';
+      el.src = goodsDefaultImg;
+    }
+  }
 };
 </script>
 

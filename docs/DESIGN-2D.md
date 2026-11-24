@@ -270,3 +270,32 @@ catalog / catalog-loading / search / search-result / search-empty / detail / det
 骨架截屏法：内嵌浏览器不产帧且本地 API <100ms，用主世界注入脚本延迟 XHR 3s + hash 切换触发重载取加载态（仅验收会话，不改应用代码）；错误态用不存在 id 999999999，重试按钮复请求回错误态验证通过。
 
 **余量**：2D-3 购物车/结算/我的 + AgentChat 视觉；2D-4 admin 登录/框架/仪表盘；2D-5 admin 列表/表单 + AI 页。
+
+---
+
+## 九、2D-3 执行记录（2026-11-24）
+
+**范围**：购物车/结算/我的三页 + AgentChat 视觉；后端零改动。验收期启动 Agent 服务（uvicorn 127.0.0.1:8000）供真实对话。
+
+### 9.1 购物车（views/order/tabbar-cart.vue）
+
+白卡行圆角 12/间距 12（checkbox + 72 圆角 8 图 + 两行题 + 规格灰 chips + 红价 tabular）；swipe-cell 右滑品牌红删除；编辑态 stepper + 批量删除确认；全选/合计/红胶囊结算条壳内固定（bottom 50 避 tabbar，定位同 2D-1 模式）；加载骨架/错误重试/空态去逛逛三态（cartList 加 silentError 透传）。
+
+### 9.2 结算（views/order/checkout.vue）
+
+地址卡圆角 12 + 品牌红定位 SVG（无地址时红字「添加收货地址」引导）；商品组卡（64 图 + 规格 chips + 红价×数量）；券 cell 右值红；金额明细 tabular、券减红；备注 maxlength 50 计数；壳内红胶囊提交条；三态齐（cartCheckout 加 silentError）；修原文件 showFailToast 未导入的潜在 ReferenceError。
+
+### 9.3 我的（views/user/tabbar-user-*.vue）
+
+红渐变头（同色相 #E4574F→brand→brand-deep）白字 + 白环头像，替代外链背景图；订单四宫格/券三宫格改品牌红内联 SVG + 红角标（规避图标字体缺码位）；service 圆角 12 卡 + SVG 图标；**AI 导购品牌浅底入口卡**（图标+文案+箭头）经 CustomEvent `leomall:agent-open` 唤起全局 AgentChat；匿名不再请求 userIndex（修 501 全局 toast+跳登录）。
+
+### 9.4 AgentChat（components/AgentChat/index.vue）
+
+气泡规范：用户品牌红底白字、AI 白卡；推荐卡**复用 goods-card 双列网格**（goods-card 顺带补图片 error 兜底）；输入胶囊 + 品牌焦点环、发送红胶囊；**历史会话侧栏自绘固定抽屉**（左圆角 16、z 2300 > 面板 2200，会话卡当前项 brand-soft 高亮、点击还原历史）——不用 van-popup right：其 z-index 不随 prop、且居中依赖 transform，与验收环境「直落终态」workaround 冲突；关闭钮内联 SVG；transition 类名修正为 Vue3 enter-from/leave-to。
+
+### 9.5 验收（design-shots/2d3-*，6 张）
+
+cart / checkout / user / chat / chat-recs / chat-history；控制台零错误（刷新后复核，HMR 中间态报错不计）。
+真实链路：Agent 回复 5 件推荐渲染双列商品卡；历史抽屉 5 条会话、切换还原对应对话；结算地址卡用冒烟地址（/wx/address/save，头名 X-Leomall-Token）呈现完整态。
+
+**余量**：2D-4 admin 登录/框架/仪表盘；2D-5 admin 列表/表单 + AI 页。

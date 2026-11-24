@@ -4,9 +4,9 @@
     <div class="agent-fab" v-show="!visible" @click="openPanel">
       <svg class="agent-fab-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 3C6.6 3 2 6.7 2 11.2c0 2.3 1.2 4.3 3.1 5.7L4.4 21l4.2-1.9c1.1.3 2.2.5 3.4.5 5.4 0 10-3.7 10-8.4S17.4 3 12 3z" fill="#ffffff"/>
-        <circle cx="7.8" cy="11.2" r="1.25" fill="#ff5a2d"/>
-        <circle cx="12" cy="11.2" r="1.25" fill="#ff5a2d"/>
-        <circle cx="16.2" cy="11.2" r="1.25" fill="#ff5a2d"/>
+        <circle cx="7.8" cy="11.2" r="1.25"/>
+        <circle cx="12" cy="11.2" r="1.25"/>
+        <circle cx="16.2" cy="11.2" r="1.25"/>
       </svg>
       <span class="agent-fab-text">AI</span>
     </div>
@@ -22,8 +22,13 @@
         <div class="agent-header">
           <span class="agent-title">智能导购</span>
           <div class="agent-header-actions">
+            <button class="agent-btn" type="button" @click="openHist">历史</button>
             <button class="agent-btn" type="button" @click="newSession">新会话</button>
-            <button class="agent-close" type="button" @click="closePanel">&times;</button>
+            <button class="agent-close" type="button" @click="closePanel">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -44,22 +49,12 @@
                 class="agent-recs"
                 v-if="msg.role === 'assistant' && msg.recommendations && msg.recommendations.length"
               >
-                <div
-                  class="agent-rec-card"
+                <goods-card
                   v-for="(goods, gi) in msg.recommendations"
                   :key="gi"
+                  :goods="recItem(goods)"
                   @click="goDetail(goods)"
-                >
-                  <img class="agent-rec-img" :src="goods.picUrl" @error="onImgError" />
-                  <div class="agent-rec-info">
-                    <div class="agent-rec-name">{{ goods.name }}</div>
-                    <div class="agent-rec-brief">{{ goods.brief }}</div>
-                    <div class="agent-rec-price">
-                      <span class="agent-rec-now">&yen;{{ fmtPrice(goods.retailPrice) }}</span>
-                      <span class="agent-rec-old" v-if="goods.counterPrice">&yen;{{ fmtPrice(goods.counterPrice) }}</span>
-                    </div>
-                  </div>
-                </div>
+                />
               </div>
             </template>
           </div>
@@ -79,12 +74,43 @@
         </div>
       </div>
     </transition>
+
+    <!-- 历史会话侧栏抽屉（自绘固定层，层级高于聊天面板 2200） -->
+    <transition name="agent-fade">
+      <div class="agent-hist-mask" v-if="showHist" @click="showHist = false"></div>
+    </transition>
+    <transition name="agent-slide-right">
+      <div class="agent-hist" v-if="showHist">
+        <div class="agent-hist_head">
+          <span>历史会话</span>
+          <button class="agent-hist_close" type="button" @click="showHist = false">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="agent-hist_list">
+          <div v-if="!sessions.length" class="agent-hist_empty">暂无历史会话</div>
+          <div
+            v-for="s in sessions"
+            :key="s.sessionId"
+            class="agent-hist_item"
+            :class="{ 'is-active': s.sessionId === sessionId }"
+            @click="switchSession(s)"
+          >
+            <div class="agent-hist_title">{{ s.title || s.lastQuery || '未命名会话' }}</div>
+            <div class="agent-hist_meta">{{ s.addTime }} · {{ s.turnCount || 0 }} 轮</div>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script>
-import { agentChat, agentHistory, agentClear, agentClick } from '@/api/agent'
-import goodsDefaultImg from '@/assets/images/goods_default.png'
+// 阶段2D-3：气泡规范（用户红底白字/AI 白卡）+ 推荐卡复用 goods-card + 胶囊输入 + 历史侧栏抽屉
+import { agentChat, agentSessions, agentHistory, agentClear, agentClick } from '@/api/agent'
+import GoodsCard from '@/components/goods-card'
 
 const STORAGE_KEY = 'agentSessionId'
 
@@ -97,7 +123,8 @@ export default {
       inputText: '',
       sending: false,
       sessionId: '',
-      defaultGoodsImg: goodsDefaultImg
+      showHist: false,
+      sessions: []
     }
   },
   created() {
@@ -107,6 +134,13 @@ export default {
       this.sessionId = sid
       this.restoreHistory(sid)
     }
+  },
+  mounted() {
+    // 「我的」页 AI 导购入口唤起
+    window.addEventListener('leomall:agent-open', this.openPanel)
+  },
+  beforeUnmount() {
+    window.removeEventListener('leomall:agent-open', this.openPanel)
   },
   methods: {
     openPanel() {
@@ -133,6 +167,31 @@ export default {
           box.scrollTop = box.scrollHeight
         }
       })
+    },
+    recItem(goods) {
+      return {
+        id: goods.goodsId,
+        name: goods.name,
+        picUrl: goods.picUrl,
+        retailPrice: goods.retailPrice,
+        counterPrice: goods.counterPrice
+      }
+    },
+    openHist() {
+      this.showHist = true
+      agentSessions()
+        .then(res => {
+          this.sessions = (res.data && res.data.data) || []
+        })
+        .catch(() => {
+          this.sessions = []
+        })
+    },
+    switchSession(s) {
+      this.sessionId = s.sessionId
+      window.localStorage.setItem(STORAGE_KEY, s.sessionId)
+      this.showHist = false
+      this.restoreHistory(s.sessionId)
     },
     restoreHistory(sid) {
       agentHistory({ sessionId: sid })
@@ -248,25 +307,19 @@ export default {
         }
       }
       this.$router.push({ name: 'detail', params: { itemId: String(goods.goodsId) } })
-    },
-    onImgError(e) {
-      const el = e.target
-      if (el.dataset.fallbacked) return
-      el.dataset.fallbacked = '1'
-      el.src = this.defaultGoodsImg
-    },
-    fmtPrice(value) {
-      const n = Number(value)
-      return isNaN(n) ? '0.00' : n.toFixed(2)
     }
+  },
+  components: {
+    GoodsCard
   }
 }
 </script>
 
 <style lang="scss" scoped>
-// 阶段2D 前置 quick wins：统一品牌红、去跨色相渐变
-$agent-color: $red;
-$agent-color-light: $red;
+// 阶段2D-3：同色相渐变（浅→深），气泡/输入/抽屉全部走 tokens
+$agent-color: var(--brand);
+$agent-color-light: #E4574F;
+$agent-color-deep: var(--brand-deep);
 
 .agent-fab {
   position: fixed;
@@ -293,6 +346,9 @@ $agent-color-light: $red;
 .agent-fab-icon {
   width: 22px;
   height: 22px;
+  circle {
+    fill: var(--brand);
+  }
 }
 .agent-fab-text {
   font-size: 11px;
@@ -305,18 +361,14 @@ $agent-color-light: $red;
 .agent-mask {
   position: fixed;
   inset: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
   z-index: 2190;
   background: rgba(0, 0, 0, 0.38);
 }
 .agent-fade-enter-active,
 .agent-fade-leave-active {
-  transition: opacity 0.28s ease;
+  transition: opacity 0.22s ease-out;
 }
-.agent-fade-enter,
+.agent-fade-enter-from,
 .agent-fade-leave-to {
   opacity: 0;
 }
@@ -324,21 +376,17 @@ $agent-color-light: $red;
 .agent-panel {
   position: fixed;
   inset: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
   z-index: 2200;
   display: flex;
   flex-direction: column;
-  background: #f5f6f8;
+  background: var(--bg);
   overflow: hidden;
 }
 .agent-up-enter-active,
 .agent-up-leave-active {
-  transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: transform 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-.agent-up-enter,
+.agent-up-enter-from,
 .agent-up-leave-to {
   transform: translateY(100%);
 }
@@ -350,7 +398,7 @@ $agent-color-light: $red;
   align-items: center;
   justify-content: space-between;
   padding: 0 12px 0 16px;
-  background: linear-gradient(135deg, $agent-color-light 0%, $agent-color 100%);
+  background: linear-gradient(135deg, $agent-color-light 0%, $agent-color-deep 100%);
   color: #fff;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
   box-sizing: border-box;
@@ -369,19 +417,22 @@ $agent-color-light: $red;
   color: #fff;
   font-size: 13px;
   padding: 4px 10px;
-  border-radius: 14px;
-  margin-right: 12px;
+  border-radius: var(--radius-pill);
+  margin-right: 8px;
   line-height: 1.2;
 }
 .agent-close {
   border: none;
   background: transparent;
   color: #fff;
-  font-size: 26px;
-  line-height: 1;
   width: 28px;
   height: 28px;
-  padding: 0;
+  padding: 4px;
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
 }
 
 .agent-messages {
@@ -410,10 +461,10 @@ $agent-color-light: $red;
 
 .agent-system {
   font-size: 12px;
-  color: #999;
-  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-3);
+  background: rgba(31, 35, 41, 0.04);
   padding: 5px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-pill);
   max-width: 80%;
   text-align: center;
   line-height: 1.5;
@@ -430,82 +481,25 @@ $agent-color-light: $red;
   box-sizing: border-box;
 }
 .agent-bubble-user {
-  background: linear-gradient(135deg, $agent-color-light 0%, $agent-color 100%);
+  background: $agent-color;
   color: #fff;
   border-bottom-right-radius: 4px;
 }
 .agent-bubble-assistant {
-  background: #fff;
-  color: #333;
+  background: var(--card);
+  color: var(--text-1);
   border-bottom-left-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-1);
 }
 
+/* 推荐卡复用共用 goods-card：双列网格 */
 .agent-recs {
   margin-top: 8px;
   width: 100%;
   max-width: 86%;
-}
-.agent-rec-card {
-  display: flex;
-  background: #fff;
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 8px;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.06);
-  padding: 8px;
-  box-sizing: border-box;
-  &:active {
-    opacity: 0.85;
-  }
-}
-.agent-rec-img {
-  flex: 0 0 auto;
-  width: 72px;
-  height: 72px;
-  border-radius: 6px;
-  object-fit: cover;
-  background: #f2f2f2;
-}
-.agent-rec-info {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin-left: 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.agent-rec-name {
-  font-size: 13px;
-  color: #333;
-  line-height: 1.35;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.agent-rec-brief {
-  font-size: 11px;
-  color: #999;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  margin: 4px 0;
-}
-.agent-rec-price {
-  display: flex;
-  align-items: baseline;
-}
-.agent-rec-now {
-  color: $agent-color;
-  font-size: 15px;
-  font-weight: 600;
-}
-.agent-rec-old {
-  color: #bbb;
-  font-size: 11px;
-  text-decoration: line-through;
-  margin-left: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
 }
 
 .agent-input-bar {
@@ -515,24 +509,24 @@ $agent-color-light: $red;
   padding: 8px 10px;
   padding-bottom: calc(8px + constant(safe-area-inset-bottom));
   padding-bottom: calc(8px + env(safe-area-inset-bottom));
-  background: #fff;
-  border-top: 1px solid #eee;
+  background: var(--card);
+  border-top: 1px solid var(--line);
   box-sizing: border-box;
 }
 .agent-input {
   flex: 1 1 auto;
   min-width: 0;
   height: 38px;
-  border: 1px solid #e5e5e5;
-  border-radius: 19px;
-  background: #f7f7f7;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: var(--bg);
   padding: 0 14px;
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
   &:focus {
-    border-color: $agent-color-light;
-    background: #fff;
+    border-color: $agent-color;
+    background: var(--card);
   }
 }
 .agent-send {
@@ -541,13 +535,106 @@ $agent-color-light: $red;
   height: 38px;
   padding: 0 16px;
   border: none;
-  border-radius: 19px;
-  background: linear-gradient(135deg, $agent-color-light 0%, $agent-color 100%);
+  border-radius: var(--radius-pill);
+  background: $agent-color;
   color: #fff;
   font-size: 14px;
   line-height: 38px;
   &:disabled {
     opacity: 0.6;
   }
+}
+
+/* 历史会话侧栏（自绘固定层） */
+.agent-hist-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 2290;
+  background: rgba(0, 0, 0, 0.38);
+}
+.agent-slide-right-enter-active,
+.agent-slide-right-leave-active {
+  transition: transform 0.24s ease-out;
+}
+.agent-slide-right-enter-from,
+.agent-slide-right-leave-to {
+  transform: translateX(100%);
+}
+.agent-hist {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 78%;
+  z-index: 2300;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border-radius: 16px 0 0 16px;
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
+}
+.agent-hist_head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--card);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.agent-hist_close {
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+}
+.agent-hist_list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px;
+}
+.agent-hist_empty {
+  padding: 40px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-3);
+}
+.agent-hist_item {
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  &:active {
+    opacity: 0.85;
+  }
+  &.is-active {
+    background: var(--brand-soft);
+  }
+}
+.agent-hist_title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.agent-hist_meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 </style>

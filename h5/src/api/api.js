@@ -146,11 +146,12 @@ export function brandDetail(query) {
 }
 
 const CartList='/cart/index'; //获取购物车的数据
-export function cartList(query) {
+export function cartList(query, config = {}) {
   return request({
     url: CartList,
     method: 'get',
-    params: query
+    params: query,
+    ...config
   })
 }
 const CartAdd='/cart/add'; // 添加商品到购物车
@@ -201,11 +202,12 @@ export function cartGoodsCount() {
   })
 }
 const CartCheckout='/cart/checkout'; // 下单前信息确认
-export function cartCheckout(query) {
+export function cartCheckout(query, config = {}) {
   return request({
     url: CartCheckout,
     method: 'get',
-    params: query
+    params: query,
+    ...config
   })
 }
 

@@ -43,13 +43,8 @@ export default {
 
 
 <style scoped lang="scss">
+/* 阶段2D-3：间距由各子组件卡片自带 margin 承担 */
 .tabbar-user {
-  > div {
-    margin-bottom: 10px;
-  }
-  &__quit {
-    border: 0;
-    border-radius: 0;
-  }
+  padding-bottom: 12px;
 }
 </style>

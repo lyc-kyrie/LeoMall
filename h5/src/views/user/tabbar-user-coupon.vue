@@ -1,86 +1,81 @@
 <template>
-	<div>
-		<van-cell-group>
-			<van-cell title="我的优惠券" isLink>
-				<router-link to="/user/coupon/list/0" class="text-desc">全部优惠券</router-link>
-			</van-cell>
-		</van-cell-group>
-
-		<van-row class="coupon_status">
-			<van-col span="8">
-				<div class="coupon_status_icon" @click="$router.push({path: '/user/coupon/list/0'})">
-					<van-icon name="coupon" />
-				</div>
-				<div>待使用</div>
-			</van-col>
-			<van-col span="8">
-				<div class="coupon_status_icon" @click="$router.push({path: '/user/coupon/list/1'})">
-					<van-icon name="coupon-used" />
-				</div>
-				<div>已使用</div>
-			</van-col>
-			<van-col span="8">
-				<div class="coupon_status_icon" @click="$router.push({path: '/user/coupon/list/2'})">
-					<van-icon name="coupon-due" />
-				</div>
-				<div>过期关闭</div>
-			</van-col>
-		</van-row>
-
-	</div>
+  <div class="ug_card">
+    <van-cell title="我的优惠券" value="全部优惠券" is-link to="/user/coupon/list/0" />
+    <div class="coupon_status">
+      <div class="coupon_status_item" @click="$router.push({ path: '/user/coupon/list/0' })">
+        <div class="coupon_status_icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 9V7a1.5 1.5 0 0 1 1.5-1.5h15A1.5 1.5 0 0 1 21 7v2a2.5 2.5 0 0 0 0 5v2a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16v-2a2.5 2.5 0 0 0 0-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M14.5 6v12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="2 2.4"/>
+          </svg>
+        </div>
+        <div class="coupon_status_label">待使用</div>
+      </div>
+      <div class="coupon_status_item" @click="$router.push({ path: '/user/coupon/list/1' })">
+        <div class="coupon_status_icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 9V7a1.5 1.5 0 0 1 1.5-1.5h15A1.5 1.5 0 0 1 21 7v2a2.5 2.5 0 0 0 0 5v2a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16v-2a2.5 2.5 0 0 0 0-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M6.5 11.5l2 2 3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="coupon_status_label">已使用</div>
+      </div>
+      <div class="coupon_status_item" @click="$router.push({ path: '/user/coupon/list/2' })">
+        <div class="coupon_status_icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 9V7a1.5 1.5 0 0 1 1.5-1.5h15A1.5 1.5 0 0 1 21 7v2a2.5 2.5 0 0 0 0 5v2a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 16v-2a2.5 2.5 0 0 0 0-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M7 9.5l4 4M11 9.5l-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="coupon_status_label">过期关闭</div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
-import { Row, Col } from 'vant';
+// 阶段2D-3：圆角卡 + 品牌红内联 SVG 三宫格
+import { Cell } from 'vant';
 
 export default {
   name: 'coupon-group',
   components: {
-    [Row.name]: Row,
-    [Col.name]: Col
+    [Cell.name]: Cell
   }
 };
 </script>
 
-
 <style scoped lang="scss">
-@import '../../assets/scss/mixin';
+.ug_card {
+  margin: 12px;
+  background: var(--card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-1);
+  overflow: hidden;
+}
 .coupon_status {
-  background-color: #fff;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   text-align: center;
-  padding: 10px 0;
+  padding: 12px 0 14px;
+}
+.coupon_status_item {
+  cursor: pointer;
+}
+.coupon_status_icon {
+  width: 26px;
+  height: 26px;
+  margin: 0 auto;
+  color: var(--brand);
+  svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+}
+.coupon_status_label {
+  margin-top: 6px;
   font-size: 12px;
-
-  > div {
-    @include one-border;
-    &::after {
-      top: 50%;
-      left: 50%;
-      border-bottom: 0;
-      border-right: 1px solid $border-color;
-      height: 150%;
-      transform: scale(0.5) translate3d(-50%, -50%, 0);
-      transform-origin: 0 0;
-    }
-    &:last-child::after {
-      border: 0;
-    }
-  }
-
-  .coupon_status_icon {
-    position: relative;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: inline-block;
-    i {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate3d(-50%, -50%, 0);
-      font-size: 24px;
-      color: #000;
-    }
-  }
+  color: var(--text-2);
 }
 </style>

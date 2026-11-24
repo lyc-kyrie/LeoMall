@@ -1,16 +1,16 @@
 <template>
-  <div class="user_header" :style="{backgroundImage: `url(${background_image})`}">
-    <van-icon name="set" class="user_set" @click="toSetting"/>
+  <div class="user_header">
+    <van-icon name="setting-o" class="user_set" @click="toSetting" />
     <div class="user_avatar">
-      <img :src="avatar" alt="头像" width="55" height="55">
+      <img :src="avatar" alt="头像" width="56" height="56">
     </div>
-    <div>{{nickName}}</div>
+    <div class="user_nick">{{ nickName }}</div>
   </div>
 </template>
 
 <script>
+// 阶段2D-3：红渐变头（同色相浅→深）+ 白字 + 白环头像，替代外链背景图
 import avatar_default from '@/assets/images/avatar_default.png';
-import bg_default from '@/assets/images/user_head_bg.png';
 import { getLocalStorage } from '@/utils/local-storage';
 
 export default {
@@ -26,8 +26,7 @@ export default {
   data() {
     return {
       nickName: '昵称',
-      avatar: avatar_default,
-      background_image: bg_default
+      avatar: avatar_default
     };
   },
 
@@ -53,25 +52,31 @@ export default {
 
 <style lang="scss" scoped>
 .user_header {
-  background-repeat: no-repeat;
-  background-size: cover;
-  height: 130px;
+  position: relative;
+  height: 150px;
   text-align: center;
   color: #fff;
-  padding-top: 30px;
+  padding-top: 34px;
+  background: linear-gradient(160deg, #E4574F 0%, var(--brand) 55%, var(--brand-deep) 100%);
 }
 
 .user_set {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 24px;
+  top: 12px;
+  right: 12px;
+  font-size: 22px;
+  color: #fff;
 }
 .user_avatar {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   img {
-    border: 0;
+    border: 2px solid rgba(255, 255, 255, 0.85);
     border-radius: 50%;
+    background: var(--card);
   }
+}
+.user_nick {
+  font-size: 16px;
+  font-weight: 600;
 }
 </style>
