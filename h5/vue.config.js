@@ -14,7 +14,10 @@ module.exports = {
     port: 6255,
     proxy: {
       '/leomall/wx': {
-        target: 'http://localhost:8080'
+        target: 'http://localhost:8080',
+        // 同源转发：剥离浏览器 Origin，避免后端 CORS 白名单（P1-1 默认空）
+        // 把 dev 代理误判为跨域而 403 Invalid CORS request
+        onProxyReq(proxyReq) { proxyReq.removeHeader('origin') }
       },
     },
   },

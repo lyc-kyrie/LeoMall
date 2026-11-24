@@ -408,7 +408,7 @@ H5 用户端 (h5/, Vue2+Vant, :6255) ──/leomall/wx/**──┐
 
 | 编号 | 修改内容 | 涉及文件 |
 |---|---|---|
-| P1-1 | CORS 来源白名单化：`leomall.cors.allowed-origins`（env `LEOMALL_CORS_ALLOWED_ORIGINS`，逗号分隔），**默认空=不开放任何跨域**；仅白名单非空才允许凭据；预检缓存 30 天→10 分钟。双前端 devServer 均为同源代理、生产 nginx 同源，不受影响。Shiro 会话 Cookie 加固为 HttpOnly+SameSite=Lax（kaptcha 依赖 Cookie 会话，不能禁用），业务请求仍走 `X-Leomall-Admin-Token` 头 | `CorsConfig.java`、`AdminWebSessionManager.java`、`application-core.yml` |
+| P1-1 | CORS 来源白名单化：`leomall.cors.allowed-origins`（env `LEOMALL_CORS_ALLOWED_ORIGINS`，逗号分隔），**默认空=不开放任何跨域**；仅白名单非空才允许凭据；预检缓存 30 天→10 分钟。双前端 devServer 均为同源代理、生产 nginx 同源，不受影响。Shiro 会话 Cookie 加固为 HttpOnly+SameSite=Lax（kaptcha 依赖 Cookie 会话，不能禁用），业务请求仍走 `X-Leomall-Admin-Token` 头。**勘误（2C 调试轮）**：dev 代理会原样转发浏览器 Origin，而后端看到的 Host 已是目标地址，被判定跨域→403 Invalid CORS request（命令行验证不带 Origin 故此前漏测）；已给双前端 `vue.config.js` 代理加 `onProxyReq` 剥离 Origin（同源转发不应携带跨域标识），白名单默认拒绝不变 | `CorsConfig.java`、`AdminWebSessionManager.java`、`application-core.yml`、`admin/vue.config.js`、`h5/vue.config.js` |
 | P1-2 | `submit` cartId 路径改 `findById(userId, cartId)` 归属校验 + null 防御；下单后删购物车改带归属的逻辑删除 `deleteById(userId, cartId)` | `WxOrderService.java`、`LeomallCartService.java` |
 | P1-3 | receive/exchange 加「用户+券」Striped 串行锁，锁内 `TransactionTemplate` 事务复查限领/总量后插入（事务在锁释放前提交），消除 check-then-act 竞态。**单实例内存锁，多实例前迁 Redis 分布式锁或 DB 唯一约束** | 新增 `CouponClaimLock.java`、`WxCouponController.java` |
 | P1-4 | 短信风控：同一号码每天 ≤10 条、同一 IP 每小时 ≤20 条（叠加原 1 分钟间隔）；统一 `checkCaptcha` 入口——成功即销毁（一次性使用）、连续失败 5 次作废；register/reset/resetPhone 全部接入 | `CaptchaCodeManager.java`、`WxAuthController.java` |
