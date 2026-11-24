@@ -18,7 +18,7 @@
 ## 技术栈
 
 - 后端：Spring Boot 3.4.5 / Java 17 / Maven / MyBatis / Spring Security 6 + Spring Session / Druid / MySQL 8
-  （阶段2B 已完成 jakarta 迁移与 Shiro→Spring Security 替换；下一步阶段2C：聊天异步化）
+  （阶段2B 已完成 jakarta 迁移与 Shiro→Spring Security 替换；阶段2C 已完成导购聊天异步化；下一步阶段2D：前端 Vue3 升级）
 - 前端：Vue2 + vue-cli 3（webpack4），管理后台 Element UI 2.x，H5 Vant2
 - Agent：Python 3.11、FastAPI、AgentScope 2.x、Qdrant（可选）、SQLite
 
@@ -52,6 +52,9 @@ mysql -uroot -p --default-character-set=utf8mb4 leomall < sql/leomall_data.sql
 | `LEOMALL_MYSQL_URL` / `LEOMALL_MYSQL_USER` / `LEOMALL_MYSQL_PASSWORD` | 覆盖数据库连接（默认值仅本机开发） |
 | `LEOMALL_CORS_ALLOWED_ORIGINS` | 跨域来源白名单（逗号分隔）。**默认空=不开放跨域**；前端同源代理/nginx 同源部署无需配置 |
 | `LEOMALL_REDIS_ENABLED` | 阶段1：`true`=共享状态走 Redis（多实例必需）；默认 `false`=单实例内存态，本机开发无需 Redis |
+| `LEOMALL_AGENT_CHAT_THREADS` / `LEOMALL_AGENT_CHAT_QUEUE` | 阶段2C：导购聊天异步线程池大小（默认 16）与有界队列容量（默认 64）；池满+队列满快速失败 802 |
+| `LEOMALL_AGENT_CHAT_ASYNC_TIMEOUT_MS` | 阶段2C：聊天异步响应期限（默认 55000ms），超时客户端收到 802；后台任务仍会跑完并落库 |
+| `LEOMALL_AGENT_CONNECT_TIMEOUT_MS` / `LEOMALL_AGENT_READ_TIMEOUT_MS` | 阶段2C：调用 Agent 的连接/读超时（默认 3000 / 45000ms） |
 | `LEOMALL_REDIS_HOST` / `LEOMALL_REDIS_PORT` / `LEOMALL_REDIS_PASSWORD` / `LEOMALL_REDIS_DB` | Redis 连接参数（仅 enabled=true 时使用，默认 localhost:6379/0） |
 | `SWAGGER_ENABLED` | 阶段2A：在线文档开关（springdoc），默认 `true`；**生产设 `false`** 整体关闭 `/v3/api-docs` 与 swagger-ui（替代原 `swagger.production`） |
 
@@ -112,6 +115,7 @@ uv run uvicorn app.presentation.server:app --host 127.0.0.1 --port 8000
 - 短信验证码：号码日限 10 条 + IP 小时限 20 条，一次性使用，连续错 5 次作废。
 - 微信自动建号使用随机不可登录密码（**存量库中历史明文 openId 密码需一次性迁移重置**）。
 - 导购聊天每用户约 6 次/分钟、每日 100 次、并发 ≤2；Agent 网关全局在途 ≤20，连续失败自动熔断 30 秒。
+- 导购聊天为异步接口（阶段2C）：Servlet 异步 + 独立有界线程池，慢速 LLM 调用不占用 Tomcat 线程，其他接口不受拖累；HTTP 契约不变，H5 零改动。
 
 ## 阶段1：Redis 共享状态（可选，多实例必需）
 

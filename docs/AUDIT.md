@@ -624,5 +624,67 @@ springdoc 2.x、JUnit5 + mockito5、移除循环依赖过渡开关。前端零�
 1. OSS/cos_api/qcloudsms 的 Java 17 运行时兼容未验证（冒烟 storage.active=local 不触发）；启用对象存储前需实测。
 2. `SWAGGER_ENABLED=false` 时 swagger-ui 的 webjar 静态页仍可访问（规格接口已 404，UI 无数据）；生产建议 nginx 一并拦截 /swagger-ui 路径。
 3. 22 个遗留集成测试已迁 JUnit5 但仍由 surefire 排除（依赖真实环境），后续阶段2E 建 Testcontainers 体系。
-4. 前端 Vue2/webpack4 未动（阶段2D）；聊天异步化（阶段2C）待推进。
+4. 前端 Vue2/webpack4 未动（阶段2D）；聊天异步化已在阶段2C 完成（见第十二节）。
 5. 运维注意：部署机需 **JDK 17+**；CI 已同步改 JDK 17。
+
+## 十二、阶段2C：导购聊天异步化（P1-8 遗留项）
+
+背景：P1-8 已完成限流/熔断，但 chat 仍同步阻塞 Tomcat 线程——LLM 调用秒级~数十秒，
+并发稍高即占满容器线程池，拖垮首页/商品等所有接口。本轮完成 BFF 异步化：
+**HTTP 契约不变（同一 POST、同一 JSON 结构），H5 前端零改动**；Agent Python 侧不动。
+
+### 设计与实现
+
+- **`WxAgentController.chat` 返回 `DeferredResult<Object>`**（Servlet 异步）：
+  重活（会话归属 → AgentGateway → 落库 → 主库商品校验）整体提取为 `doChat`，
+  移入独立线程池执行，Tomcat 线程即时释放。
+- **`wx/config/AgentAsyncConfig`**：`agentChatExecutor` = `ThreadPoolExecutor(threads, threads,
+  60s, ArrayBlockingQueue(queueCapacity), 命名 daemon 线程 "agent-chat-N", AbortPolicy)`，
+  `allowCoreThreadTimeOut(true)` 空闲回收；`destroyMethod="shutdown"` 随容器关闭。
+- **快速路径留在请求线程**：未登录 501 / 参数 401（litemall 既有参数错误码）/
+  限流 803（`guard.tryAcquire`，拒绝不占池）；池满+队列满 `RejectedExecutionException`
+  → 释放守卫 + 802「智能助手繁忙」。
+- **异步超时 `onTimeout` → 802「智能助手响应超时」**：不释放守卫——任务 `finally` 统一释放
+  （排队任务执行后同样释放）；`setResult` 幂等，超时后跑完的任务结果被丢弃但**照常落库**，
+  保证会话/消息一致性（用户下次打开历史能看到该轮）。
+- **超时全面 env 化**（application-wx.yml）：
+
+| 配置 | 环境变量 | 默认 |
+|---|---|---|
+| `leomall.agent.connect-timeout-ms` | `LEOMALL_AGENT_CONNECT_TIMEOUT_MS` | 3000 |
+| `leomall.agent.read-timeout-ms` | `LEOMALL_AGENT_READ_TIMEOUT_MS` | 45000（原硬编码 60s） |
+| `leomall.agent.chat.threads` | `LEOMALL_AGENT_CHAT_THREADS` | 16 |
+| `leomall.agent.chat.queue-capacity` | `LEOMALL_AGENT_CHAT_QUEUE` | 64 |
+| `leomall.agent.chat.async-timeout-ms` | `LEOMALL_AGENT_CHAT_ASYNC_TIMEOUT_MS` | 55000 |
+
+  关系：connect < read < async（异步期限须大于读超时，否则网关正常等待也会被客户端先判超时）。
+
+### 验证（运行时级）
+
+- 新增 `AgentAsyncConfigTest` 3 项（池+队列满拒绝、命名 daemon 线程、排队任务终执行）；
+  `mvn verify` 7 模块 BUILD SUCCESS，**34/34 测试通过**。
+- 临时 MySQL 8.0 容器（13306，37 表）+ Python stdlib 慢速 stub agent（18100，延迟可调、
+  校验 X-Internal-Token、返回真实 goods_id 推荐）+ exec jar 真实启动，
+  **`SERVER_TOMCAT_THREADS_MAX=4` 放大线程稀缺**：
+  - **线程释放证明**：19 路真同步并发慢 chat（stub 3s，9 用户×2 + 同用户第 3 路，
+    HttpClient 同批 14ms 内发射）期间，`home/index` 时延 **37–110ms**——
+    旧同步模型下 4 个 Tomcat 线程会被前 4 路 chat 占满、首页排队数秒。
+    结果：16 路成功且商品卡 recs=2（主库校验生效）、2 路排队超过 8s 异步期限正确 802、
+    **同用户第 3 路 803「上一个问题还在处理中」**（并发上限 2 保持）。
+  - **读超时**：stub 8s > read 4s → 802 @4034ms。
+  - **异步超时**（threads=1 / queue=1 / async=2s / read=15s）：客户端 ~2.8s 收到 802；
+    超时任务 5s 跑完后**落库 turnCount=1**、守卫 finally 释放 → 同用户再聊 errno=0。
+  - **池满拒绝**：4 路同发 → 2×802「繁忙」（拒绝）+ 2×802「超时」（1 执行 + 1 排队）；
+    排队任务跑完后全部恢复 errno=0。日志见 `导购聊天异步超时（2000ms）`（容器线程回调）。
+  - **未登录 501 / 空 query 401**；落库链路 sessions/history/messages/recommendations 正常。
+  - **agent 宕机**：连续 5 次 802 → 熔断开 30s（日志「Agent 连续失败达到阈值，熔断 30 秒」），
+    第 6 次 **802 @8ms** 走熔断分支（AgentGateway.chat:67），线程名 `agent-chat-N` 佐证池执行。
+- 冒烟后已清理：应用/stub 进程停止、MySQL 容器删除、db15 测试键清空。
+
+### 残留与后续
+
+1. 异步超时后排队/在途任务**不取消**（DeferredResult 语义），仍跑完落库——浪费少量算力
+   换会话一致性；如需取消可改 `Future` + interrupt（需 AgentGateway/HttpClient 支持中断）。
+2. 线程池默认 16/64 为单实例经验值，生产按 Agent 容量与实例数调参；
+   多实例下每实例独立池，全局在途仍由网关信号量（≤20/实例）与熔断兜底。
+3. 限流 6/分、日 100、并发 2 沿用 P1-8，未改动；H5 与 Agent Python 侧零改动。

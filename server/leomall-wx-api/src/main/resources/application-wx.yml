@@ -10,6 +10,14 @@ leomall:
     # 不提供任何默认值（P0-6）：默认值会随 jar 分发等于公开凭据。
     # 开发/生产都用环境变量 LEOMALL_AGENT_INTERNAL_TOKEN 注入，两侧保持一致。
     internal-token: ${LEOMALL_AGENT_INTERNAL_TOKEN:}
-    connect-timeout-ms: 3000
-    read-timeout-ms: 60000
+    connect-timeout-ms: ${LEOMALL_AGENT_CONNECT_TIMEOUT_MS:3000}
+    # 阶段2C：60s → 45s（审计 P1-8「更短超时」），可环境变量覆盖
+    read-timeout-ms: ${LEOMALL_AGENT_READ_TIMEOUT_MS:45000}
     top-k: 5
+    # 阶段2C：chat 异步化——独立有界线程池承载阻塞调用，Tomcat 线程即时释放。
+    # threads=并发执行上限；queue-capacity=排队上限，超出立即 802 快速失败；
+    # async-timeout-ms=Servlet 异步超时（须 > connect+read+落库耗时）。
+    chat:
+      threads: ${LEOMALL_AGENT_CHAT_THREADS:16}
+      queue-capacity: ${LEOMALL_AGENT_CHAT_QUEUE:64}
+      async-timeout-ms: ${LEOMALL_AGENT_CHAT_ASYNC_TIMEOUT_MS:55000}

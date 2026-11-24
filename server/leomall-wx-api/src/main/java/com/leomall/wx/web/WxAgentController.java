@@ -16,12 +16,15 @@ import com.leomall.wx.annotation.LoginUser;
 import com.leomall.wx.service.AgentChatGuard;
 import com.leomall.wx.service.AgentGateway;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.DeferredResult;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -31,6 +34,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * 智能导购（H5 用户端）接口。
@@ -55,6 +60,11 @@ public class WxAgentController {
     @Autowired
     private AgentChatGuard agentChatGuard;
     @Autowired
+    @Qualifier("agentChatExecutor")
+    private ThreadPoolExecutor agentChatExecutor;
+    @Value("${leomall.agent.chat.async-timeout-ms:55000}")
+    private long chatAsyncTimeoutMs;
+    @Autowired
     private LeomallAgentSessionService sessionService;
     @Autowired
     private LeomallAgentMessageService messageService;
@@ -63,29 +73,67 @@ public class WxAgentController {
     @Autowired
     private LeomallGoodsService goodsService;
 
-    /** 一轮对话：提问 → 推荐 → 落库 → 返回商品卡。 */
+    /**
+     * 一轮对话：提问 → 推荐 → 落库 → 返回商品卡。
+     *
+     * 阶段2C（P1-8 异步化）：返回 DeferredResult，阻塞部分（Agent 调用 + 校验落库）
+     * 移入独立有界线程池 agentChatExecutor，Tomcat 线程即时释放。
+     * HTTP 契约不变（同一 POST、同一 JSON 结构），H5 前端零改动。
+     * 快速失败路径：未登录 501 / 参数 401 / 限流 803 / 池满 802 / 异步超时 802。
+     */
     @PostMapping("chat")
-    public Object chat(@LoginUser Integer userId, @RequestBody String body) {
+    public DeferredResult<Object> chat(@LoginUser Integer userId, @RequestBody String body) {
+        DeferredResult<Object> result = new DeferredResult<>(chatAsyncTimeoutMs);
         if (userId == null) {
-            return ResponseUtil.unlogin();
+            result.setResult(ResponseUtil.unlogin());
+            return result;
         }
         String query = JacksonUtil.parseString(body, "query");
         if (StringUtils.isEmpty(query) || query.trim().isEmpty()) {
-            return ResponseUtil.badArgument();
+            result.setResult(ResponseUtil.badArgument());
+            return result;
         }
-        query = query.trim();
-        if (query.length() > MAX_QUERY_LENGTH) {
-            query = query.substring(0, MAX_QUERY_LENGTH);
-        }
+        final String trimmedQuery = query.trim().length() > MAX_QUERY_LENGTH
+                ? query.trim().substring(0, MAX_QUERY_LENGTH) : query.trim();
 
         // P1-8：每用户限流（约6次/分钟）+ 每日配额（100次）+ 并发上限（2），
-        // 防 LLM 成本滥用与长请求耗尽 Tomcat 线程。
+        // 防 LLM 成本滥用。在请求线程完成，拒绝时不占用线程池。
         String reject = agentChatGuard.tryAcquire(userId);
         if (reject != null) {
-            return ResponseUtil.fail(803, reject);
+            result.setResult(ResponseUtil.fail(803, reject));
+            return result;
         }
+
+        final String requestedSessionId = JacksonUtil.parseString(body, "sessionId");
+        // 异步超时：任务可能仍在跑（由其 finally 释放守卫）或仍在排队（执行后释放），
+        // 这里只负责给客户端一个确定的失败响应；setResult 幂等，后到的任务结果被丢弃。
+        result.onTimeout(() -> {
+            logger.warn("导购聊天异步超时（" + chatAsyncTimeoutMs + "ms），userId=" + userId);
+            result.setResult(ResponseUtil.fail(802, "智能助手响应超时，请稍后重试"));
+        });
+
         try {
-        String sessionId = JacksonUtil.parseString(body, "sessionId");
+            agentChatExecutor.execute(() -> {
+                try {
+                    result.setResult(doChat(userId, requestedSessionId, trimmedQuery));
+                } catch (Exception e) {
+                    logger.error("导购聊天处理失败，userId=" + userId, e);
+                    result.setResult(ResponseUtil.serious());
+                } finally {
+                    agentChatGuard.release(userId);
+                }
+            });
+        } catch (RejectedExecutionException rex) {
+            // 池满且队列满：快速失败，不排队
+            agentChatGuard.release(userId);
+            result.setResult(ResponseUtil.fail(802, "智能助手繁忙，请稍后重试"));
+        }
+        return result;
+    }
+
+    /** 聊天重活（在 agentChatExecutor 线程执行）：会话 → Agent → 校验落库 → 商品卡。 */
+    private Object doChat(Integer userId, String requestedSessionId, String query) {
+        String sessionId = requestedSessionId;
         LeomallAgentSession session = null;
         if (!StringUtils.isEmpty(sessionId)) {
             // 会话必须属于当前登录用户，避免越权读取他人对话
@@ -203,9 +251,6 @@ public class WxAgentController {
         data.put("degraded", degraded);
         data.put("addTime", formatTime(assistantMessage.getAddTime()));
         return ResponseUtil.ok(data);
-        } finally {
-            agentChatGuard.release(userId);
-        }
     }
 
     /** 当前用户的会话列表（按 userId 隔离）。 */
