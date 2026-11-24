@@ -1,15 +1,16 @@
 # 阶段1：Redis 连接（仅 leomall.redis.enabled=true 时实际使用）
 spring:
-  main:
-    # 阶段2A：Boot 2.6+ 默认禁止循环引用；遗留代码存在字段注入环，
-    # 先以开关保证启动，阶段2B 逐个解环（构造注入/事件解耦）后移除。
-    allow-circular-references: true
-  redis:
-    host: ${LEOMALL_REDIS_HOST:localhost}
-    port: ${LEOMALL_REDIS_PORT:6379}
-    password: ${LEOMALL_REDIS_PASSWORD:}
-    database: ${LEOMALL_REDIS_DB:0}
-    timeout: 2000ms
+  autoconfigure:
+    # 阶段2B：管理端会话由 AdminSessionConfig 显式装配（@EnableSpringHttpSession），
+    # 排除 Boot 会话自动配置，避免 store-type 自动探测与条件装配冲突。
+    exclude: org.springframework.boot.autoconfigure.session.SessionAutoConfiguration
+  data:
+    redis:
+      host: ${LEOMALL_REDIS_HOST:localhost}
+      port: ${LEOMALL_REDIS_PORT:6379}
+      password: ${LEOMALL_REDIS_PASSWORD:}
+      database: ${LEOMALL_REDIS_DB:0}
+      timeout: 2000ms
 
 leomall:
   # 阶段1：共享状态开关。false（默认）= 单实例内存实现，本机开发无需 Redis；

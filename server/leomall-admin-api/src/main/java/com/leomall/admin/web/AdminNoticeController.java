@@ -2,9 +2,9 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
-import org.apache.shiro.subject.Subject;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.JacksonUtil;
 import com.leomall.core.util.ResponseUtil;
@@ -20,7 +20,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +40,7 @@ public class AdminNoticeController {
     @Autowired
     private LeomallNoticeAdminService noticeAdminService;
 
-    @RequiresPermissions("admin:notice:list")
+    @PreAuthorize("hasAuthority('admin:notice:list')")
     @RequiresPermissionsDesc(menu = {"系统管理", "通知管理"}, button = "查询")
     @GetMapping("/list")
     public Object list(String title, String content,
@@ -61,12 +61,12 @@ public class AdminNoticeController {
     }
 
     private Integer getAdminId(){
-        Subject currentUser = SecurityUtils.getSubject();
+        Authentication currentUser = SecurityContextHolder.getContext().getAuthentication();
         LeomallAdmin admin = (LeomallAdmin) currentUser.getPrincipal();
         return admin.getId();
     }
 
-    @RequiresPermissions("admin:notice:create")
+    @PreAuthorize("hasAuthority('admin:notice:create')")
     @RequiresPermissionsDesc(menu = {"推广管理", "通知管理"}, button = "添加")
     @PostMapping("/create")
     public Object create(@RequestBody LeomallNotice notice) {
@@ -91,7 +91,7 @@ public class AdminNoticeController {
         return ResponseUtil.ok(notice);
     }
 
-    @RequiresPermissions("admin:notice:read")
+    @PreAuthorize("hasAuthority('admin:notice:read')")
     @RequiresPermissionsDesc(menu = {"推广管理", "通知管理"}, button = "详情")
     @GetMapping("/read")
     public Object read(@NotNull Integer id) {
@@ -103,7 +103,7 @@ public class AdminNoticeController {
         return ResponseUtil.ok(data);
     }
 
-    @RequiresPermissions("admin:notice:update")
+    @PreAuthorize("hasAuthority('admin:notice:update')")
     @RequiresPermissionsDesc(menu = {"推广管理", "通知管理"}, button = "编辑")
     @PostMapping("/update")
     public Object update(@RequestBody LeomallNotice notice) {
@@ -133,7 +133,7 @@ public class AdminNoticeController {
         return ResponseUtil.ok(notice);
     }
 
-    @RequiresPermissions("admin:notice:delete")
+    @PreAuthorize("hasAuthority('admin:notice:delete')")
     @RequiresPermissionsDesc(menu = {"推广管理", "通知管理"}, button = "删除")
     @PostMapping("/delete")
     public Object delete(@RequestBody LeomallNotice notice) {
@@ -144,7 +144,7 @@ public class AdminNoticeController {
         return ResponseUtil.ok();
     }
 
-    @RequiresPermissions("admin:notice:batch-delete")
+    @PreAuthorize("hasAuthority('admin:notice:batch-delete')")
     @RequiresPermissionsDesc(menu = {"推广管理", "通知管理"}, button = "批量删除")
     @PostMapping("/batch-delete")
     public Object batchDelete(@RequestBody String body) {

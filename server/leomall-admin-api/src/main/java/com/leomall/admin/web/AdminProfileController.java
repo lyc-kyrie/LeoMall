@@ -1,9 +1,10 @@
 package com.leomall.admin.web;
+
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.authz.annotation.RequiresAuthentication;
-import org.apache.shiro.subject.Subject;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 import com.leomall.core.util.JacksonUtil;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.util.bcrypt.BCryptPasswordEncoder;
@@ -42,7 +43,7 @@ public class AdminProfileController {
     @Autowired
     private LeomallNoticeAdminService noticeAdminService;
 
-    @RequiresAuthentication
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/password")
     public Object create(@RequestBody String body) {
         String oldPassword = JacksonUtil.parseString(body, "oldPassword");
@@ -54,7 +55,7 @@ public class AdminProfileController {
             return ResponseUtil.badArgument();
         }
 
-        Subject currentUser = SecurityUtils.getSubject();
+        Authentication currentUser = SecurityContextHolder.getContext().getAuthentication();
         LeomallAdmin admin = (LeomallAdmin) currentUser.getPrincipal();
 
         BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
@@ -70,19 +71,19 @@ public class AdminProfileController {
     }
 
     private Integer getAdminId(){
-        Subject currentUser = SecurityUtils.getSubject();
+        Authentication currentUser = SecurityContextHolder.getContext().getAuthentication();
         LeomallAdmin admin = (LeomallAdmin) currentUser.getPrincipal();
         return admin.getId();
     }
 
-    @RequiresAuthentication
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/nnotice")
     public Object nNotice() {
         int count = noticeAdminService.countUnread(getAdminId());
         return ResponseUtil.ok(count);
     }
 
-    @RequiresAuthentication
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/lsnotice")
     public Object lsNotice(String title, String type,
                             @RequestParam(defaultValue = "1") Integer page,
@@ -93,7 +94,7 @@ public class AdminProfileController {
         return ResponseUtil.okList(noticeList);
     }
 
-    @RequiresAuthentication
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/catnotice")
     public Object catNotice(@RequestBody String body) {
         Integer noticeId = JacksonUtil.parseInteger(body, "noticeId");
@@ -127,7 +128,7 @@ public class AdminProfileController {
         return ResponseUtil.ok(data);
     }
 
-    @RequiresAuthentication
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/bcatnotice")
     public Object bcatNotice(@RequestBody String body) {
         List<Integer> ids = JacksonUtil.parseIntegerList(body, "ids");
@@ -135,7 +136,7 @@ public class AdminProfileController {
         return ResponseUtil.ok();
     }
 
-    @RequiresAuthentication
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/rmnotice")
     public Object rmNotice(@RequestBody String body) {
         Integer id = JacksonUtil.parseInteger(body, "id");
@@ -146,7 +147,7 @@ public class AdminProfileController {
         return ResponseUtil.ok();
     }
 
-    @RequiresAuthentication
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/brmnotice")
     public Object brmNotice(@RequestBody String body) {
         List<Integer> ids = JacksonUtil.parseIntegerList(body, "ids");

@@ -5,16 +5,19 @@ import org.apache.commons.logging.LogFactory;
 import org.hibernate.validator.internal.engine.path.PathImpl;
 import com.leomall.core.util.ResponseUtil;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.ConstraintViolationException;
-import javax.validation.ValidationException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ValidationException;
 import java.util.Set;
 
 @ControllerAdvice
@@ -64,6 +67,17 @@ public class GlobalExceptionHandler {
             }
         }
         return ResponseUtil.badArgumentValue();
+    }
+
+    /**
+     * 阶段2B：Boot 3.2+ 默认对无处理器/无静态资源请求抛异常，
+     * 这里恢复标准 404（否则被下方 Exception 兜底转成 502，
+     * 例如 SWAGGER_ENABLED=false 时的 /v3/api-docs）。
+     */
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    @ResponseBody
+    public ResponseEntity<Void> notFoundHandler(Exception e) {
+        return ResponseEntity.notFound().build();
     }
 
     @ExceptionHandler(Exception.class)

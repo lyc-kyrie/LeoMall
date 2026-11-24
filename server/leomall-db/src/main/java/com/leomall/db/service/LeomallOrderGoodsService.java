@@ -5,7 +5,7 @@ import com.leomall.db.domain.LeomallOrderGoods;
 import com.leomall.db.domain.LeomallOrderGoodsExample;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.List;
 

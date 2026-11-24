@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -17,7 +17,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 @RestController
@@ -31,7 +31,7 @@ public class AdminCouponController {
     @Autowired
     private LeomallCouponUserService couponUserService;
 
-    @RequiresPermissions("admin:coupon:list")
+    @PreAuthorize("hasAuthority('admin:coupon:list')")
     @RequiresPermissionsDesc(menu = {"推广管理", "优惠券管理"}, button = "查询")
     @GetMapping("/list")
     public Object list(String name, Short type, Short status,
@@ -43,7 +43,7 @@ public class AdminCouponController {
         return ResponseUtil.okList(couponList);
     }
 
-    @RequiresPermissions("admin:coupon:listuser")
+    @PreAuthorize("hasAuthority('admin:coupon:listuser')")
     @RequiresPermissionsDesc(menu = {"推广管理", "优惠券管理"}, button = "查询用户")
     @GetMapping("/listuser")
     public Object listuser(Integer userId, Integer couponId, Short status,
@@ -64,7 +64,7 @@ public class AdminCouponController {
         return null;
     }
 
-    @RequiresPermissions("admin:coupon:create")
+    @PreAuthorize("hasAuthority('admin:coupon:create')")
     @RequiresPermissionsDesc(menu = {"推广管理", "优惠券管理"}, button = "添加")
     @PostMapping("/create")
     public Object create(@RequestBody LeomallCoupon coupon) {
@@ -83,7 +83,7 @@ public class AdminCouponController {
         return ResponseUtil.ok(coupon);
     }
 
-    @RequiresPermissions("admin:coupon:read")
+    @PreAuthorize("hasAuthority('admin:coupon:read')")
     @RequiresPermissionsDesc(menu = {"推广管理", "优惠券管理"}, button = "详情")
     @GetMapping("/read")
     public Object read(@NotNull Integer id) {
@@ -91,7 +91,7 @@ public class AdminCouponController {
         return ResponseUtil.ok(coupon);
     }
 
-    @RequiresPermissions("admin:coupon:update")
+    @PreAuthorize("hasAuthority('admin:coupon:update')")
     @RequiresPermissionsDesc(menu = {"推广管理", "优惠券管理"}, button = "编辑")
     @PostMapping("/update")
     public Object update(@RequestBody LeomallCoupon coupon) {
@@ -105,7 +105,7 @@ public class AdminCouponController {
         return ResponseUtil.ok(coupon);
     }
 
-    @RequiresPermissions("admin:coupon:delete")
+    @PreAuthorize("hasAuthority('admin:coupon:delete')")
     @RequiresPermissionsDesc(menu = {"推广管理", "优惠券管理"}, button = "删除")
     @PostMapping("/delete")
     public Object delete(@RequestBody LeomallCoupon coupon) {

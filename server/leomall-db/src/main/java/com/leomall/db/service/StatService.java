@@ -3,7 +3,7 @@ package com.leomall.db.service;
 import com.leomall.db.dao.StatMapper;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
+import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Map;
 

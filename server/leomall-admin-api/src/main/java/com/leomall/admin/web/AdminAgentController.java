@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -44,7 +44,7 @@ public class AdminAgentController {
     @Autowired
     private AgentStatMapper agentStatMapper;
 
-    @RequiresPermissions("admin:agent:list")
+    @PreAuthorize("hasAuthority('admin:agent:list')")
     @RequiresPermissionsDesc(menu = {"智能助手", "会话记录"}, button = "查询")
     @GetMapping("/sessions")
     public Object sessions(String userId, String keyword,
@@ -55,7 +55,7 @@ public class AdminAgentController {
         return ResponseUtil.okList(sessionService.querySelective(userId, keyword, page, limit, sort, order));
     }
 
-    @RequiresPermissions("admin:agent:read")
+    @PreAuthorize("hasAuthority('admin:agent:read')")
     @RequiresPermissionsDesc(menu = {"智能助手", "会话记录"}, button = "详情")
     @GetMapping("/messages")
     public Object messages(String sessionId, String userId,
@@ -66,7 +66,7 @@ public class AdminAgentController {
         return ResponseUtil.okList(messageService.querySelective(sessionId, userId, page, limit, sort, order));
     }
 
-    @RequiresPermissions("admin:agent:read")
+    @PreAuthorize("hasAuthority('admin:agent:read')")
     @RequiresPermissionsDesc(menu = {"智能助手", "会话记录"}, button = "推荐明细")
     @GetMapping("/recommendations")
     public Object recommendations(String sessionId, Integer userId,
@@ -97,7 +97,7 @@ public class AdminAgentController {
         return ResponseUtil.okList(list);
     }
 
-    @RequiresPermissions("admin:agent:stats")
+    @PreAuthorize("hasAuthority('admin:agent:stats')")
     @RequiresPermissionsDesc(menu = {"智能助手", "推荐效果"}, button = "查询")
     @GetMapping("/stats")
     public Object stats(@RequestParam(defaultValue = "10") Integer topLimit) {

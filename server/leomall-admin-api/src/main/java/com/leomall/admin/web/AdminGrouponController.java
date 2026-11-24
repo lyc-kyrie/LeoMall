@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.admin.task.GrouponRuleExpiredTask;
 import com.leomall.admin.util.AdminResponseCode;
@@ -45,7 +45,7 @@ public class AdminGrouponController {
     @Autowired
     private TaskService taskService;
 
-    @RequiresPermissions("admin:groupon:read")
+    @PreAuthorize("hasAuthority('admin:groupon:read')")
     @RequiresPermissionsDesc(menu = {"推广管理", "团购管理"}, button = "详情")
     @GetMapping("/listRecord")
     public Object listRecord(String grouponRuleId,
@@ -77,7 +77,7 @@ public class AdminGrouponController {
         return ResponseUtil.okList(groupons, grouponList);
     }
 
-    @RequiresPermissions("admin:groupon:list")
+    @PreAuthorize("hasAuthority('admin:groupon:list')")
     @RequiresPermissionsDesc(menu = {"推广管理", "团购管理"}, button = "查询")
     @GetMapping("/list")
     public Object list(String goodsId,
@@ -110,7 +110,7 @@ public class AdminGrouponController {
         return null;
     }
 
-    @RequiresPermissions("admin:groupon:update")
+    @PreAuthorize("hasAuthority('admin:groupon:update')")
     @RequiresPermissionsDesc(menu = {"推广管理", "团购管理"}, button = "编辑")
     @PostMapping("/update")
     public Object update(@RequestBody LeomallGrouponRules grouponRules) {
@@ -143,7 +143,7 @@ public class AdminGrouponController {
         return ResponseUtil.ok();
     }
 
-    @RequiresPermissions("admin:groupon:create")
+    @PreAuthorize("hasAuthority('admin:groupon:create')")
     @RequiresPermissionsDesc(menu = {"推广管理", "团购管理"}, button = "添加")
     @PostMapping("/create")
     public Object create(@RequestBody LeomallGrouponRules grouponRules) {
@@ -175,7 +175,7 @@ public class AdminGrouponController {
         return ResponseUtil.ok(grouponRules);
     }
 
-    @RequiresPermissions("admin:groupon:delete")
+    @PreAuthorize("hasAuthority('admin:groupon:delete')")
     @RequiresPermissionsDesc(menu = {"推广管理", "团购管理"}, button = "删除")
     @PostMapping("/delete")
     public Object delete(@RequestBody LeomallGrouponRules grouponRules) {

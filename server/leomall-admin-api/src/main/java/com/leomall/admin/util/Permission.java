@@ -1,23 +1,26 @@
 package com.leomall.admin.util;
 
-import org.apache.shiro.authz.annotation.RequiresPermissions;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 
+/**
+ * 阶段2B：权限模型不再持有 Shiro 注解，改存权限字符串
+ * （从 @PreAuthorize("hasAuthority('...')") 提取），供角色管理 UI 使用。
+ */
 public class Permission {
-    private RequiresPermissions requiresPermissions;
+    private String permission;
     private RequiresPermissionsDesc requiresPermissionsDesc;
     private String api;
 
-    public RequiresPermissions getRequiresPermissions() {
-        return requiresPermissions;
+    public String getPermission() {
+        return permission;
+    }
+
+    public void setPermission(String permission) {
+        this.permission = permission;
     }
 
     public RequiresPermissionsDesc getRequiresPermissionsDesc() {
         return requiresPermissionsDesc;
-    }
-
-    public void setRequiresPermissions(RequiresPermissions requiresPermissions) {
-        this.requiresPermissions = requiresPermissions;
     }
 
     public void setRequiresPermissionsDesc(RequiresPermissionsDesc requiresPermissionsDesc) {

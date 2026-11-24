@@ -2,8 +2,8 @@ package com.leomall.core.state;
 
 import java.time.Duration;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * 阶段1回归：InMemoryStateStore 语义测试（与 RedisStateStore 对齐）。
@@ -15,49 +15,49 @@ public class InMemoryStateStoreTest {
     public void setGetDeleteWithTtl() throws InterruptedException {
         StateStore s = new InMemoryStateStore();
         s.set("k", "v", Duration.ofMillis(120));
-        Assert.assertEquals("v", s.get("k"));
+        Assertions.assertEquals("v", s.get("k"));
         Thread.sleep(180);
-        Assert.assertNull("TTL 过期后必须读不到", s.get("k"));
+        Assertions.assertNull(s.get("k"), "TTL 过期后必须读不到");
 
         s.set("k2", "v2", Duration.ofSeconds(10));
-        Assert.assertTrue(s.delete("k2"));
-        Assert.assertNull(s.get("k2"));
+        Assertions.assertTrue(s.delete("k2"));
+        Assertions.assertNull(s.get("k2"));
     }
 
     @Test
     public void setIfAbsentIsExclusive() {
         StateStore s = new InMemoryStateStore();
-        Assert.assertTrue(s.setIfAbsent("nx", "1", Duration.ofSeconds(10)));
-        Assert.assertFalse(s.setIfAbsent("nx", "2", Duration.ofSeconds(10)));
-        Assert.assertEquals("1", s.get("nx"));
+        Assertions.assertTrue(s.setIfAbsent("nx", "1", Duration.ofSeconds(10)));
+        Assertions.assertFalse(s.setIfAbsent("nx", "2", Duration.ofSeconds(10)));
+        Assertions.assertEquals("1", s.get("nx"));
     }
 
     @Test
     public void incrementDecrement() {
         StateStore s = new InMemoryStateStore();
-        Assert.assertEquals(1, s.increment("c", Duration.ofSeconds(10)));
-        Assert.assertEquals(2, s.increment("c", Duration.ofSeconds(10)));
-        Assert.assertEquals(1, s.decrement("c"));
-        Assert.assertEquals(0, s.decrement("c"));
-        Assert.assertNull("计数归零必须删键", s.get("c"));
-        Assert.assertEquals("不存在键 decrement 返回 0", 0, s.decrement("missing"));
+        Assertions.assertEquals(1, s.increment("c", Duration.ofSeconds(10)));
+        Assertions.assertEquals(2, s.increment("c", Duration.ofSeconds(10)));
+        Assertions.assertEquals(1, s.decrement("c"));
+        Assertions.assertEquals(0, s.decrement("c"));
+        Assertions.assertNull(s.get("c"), "计数归零必须删键");
+        Assertions.assertEquals(0, s.decrement("missing"), "不存在键 decrement 返回 0");
     }
 
     @Test
     public void lockTokenSemantics() throws InterruptedException {
         StateStore s = new InMemoryStateStore();
         String token = s.tryLock("lk", Duration.ofSeconds(10));
-        Assert.assertNotNull(token);
-        Assert.assertNull("锁必须互斥", s.tryLock("lk", Duration.ofSeconds(10)));
+        Assertions.assertNotNull(token);
+        Assertions.assertNull(s.tryLock("lk", Duration.ofSeconds(10)), "锁必须互斥");
         s.unlock("lk", "wrong-token");
-        Assert.assertNotNull("错误 token 不得释放锁", s.get("lk"));
+        Assertions.assertNotNull(s.get("lk"), "错误 token 不得释放锁");
         s.unlock("lk", token);
-        Assert.assertNull(s.get("lk"));
+        Assertions.assertNull(s.get("lk"));
 
         String token2 = s.tryLock("lk", Duration.ofMillis(120));
-        Assert.assertNotNull(token2);
+        Assertions.assertNotNull(token2);
         Thread.sleep(180);
-        Assert.assertNotNull("锁 TTL 到期必须自动释放", s.tryLock("lk", Duration.ofSeconds(10)));
+        Assertions.assertNotNull(s.tryLock("lk", Duration.ofSeconds(10)), "锁 TTL 到期必须自动释放");
     }
 
     @Test
@@ -75,6 +75,6 @@ public class InMemoryStateStoreTest {
         for (Thread t : threads) {
             t.join();
         }
-        Assert.assertEquals("8000", s.get("hot"));
+        Assertions.assertEquals("8000", s.get("hot"));
     }
 }

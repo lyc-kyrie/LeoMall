@@ -2,9 +2,9 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
-import org.apache.shiro.subject.Subject;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.admin.service.LogHelper;
 import com.leomall.core.util.RegexUtil;
@@ -20,7 +20,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.util.Arrays;
 import java.util.List;
 
@@ -39,7 +39,7 @@ public class AdminAdminController {
     @Autowired
     private LogHelper logHelper;
 
-    @RequiresPermissions("admin:admin:list")
+    @PreAuthorize("hasAuthority('admin:admin:list')")
     @RequiresPermissionsDesc(menu = {"系统管理", "管理员管理"}, button = "查询")
     @GetMapping("/list")
     public Object list(String username,
@@ -58,8 +58,8 @@ public class AdminAdminController {
         if (roleIds == null || roleIds.length == 0) {
             return null;
         }
-        Subject currentUser = SecurityUtils.getSubject();
-        if (currentUser.isPermitted("*")) {
+        Authentication currentUser = SecurityContextHolder.getContext().getAuthentication();
+        if (currentUser.getAuthorities().stream().anyMatch(a -> "*".equals(a.getAuthority()))) {
             return null;
         }
         for (Integer roleId : roleIds) {
@@ -85,7 +85,7 @@ public class AdminAdminController {
         return null;
     }
 
-    @RequiresPermissions("admin:admin:create")
+    @PreAuthorize("hasAuthority('admin:admin:create')")
     @RequiresPermissionsDesc(menu = {"系统管理", "管理员管理"}, button = "添加")
     @PostMapping("/create")
     public Object create(@RequestBody LeomallAdmin admin) {
@@ -114,7 +114,7 @@ public class AdminAdminController {
         return ResponseUtil.ok(admin);
     }
 
-    @RequiresPermissions("admin:admin:read")
+    @PreAuthorize("hasAuthority('admin:admin:read')")
     @RequiresPermissionsDesc(menu = {"系统管理", "管理员管理"}, button = "详情")
     @GetMapping("/read")
     public Object read(@NotNull Integer id) {
@@ -125,7 +125,7 @@ public class AdminAdminController {
         return ResponseUtil.ok(admin);
     }
 
-    @RequiresPermissions("admin:admin:update")
+    @PreAuthorize("hasAuthority('admin:admin:update')")
     @RequiresPermissionsDesc(menu = {"系统管理", "管理员管理"}, button = "编辑")
     @PostMapping("/update")
     public Object update(@RequestBody LeomallAdmin admin) {
@@ -143,8 +143,8 @@ public class AdminAdminController {
             return roleError;
         }
         // P2-7：非超级管理员不得编辑超级管理员账号（防间接提权）
-        Subject currentUser = SecurityUtils.getSubject();
-        if (!currentUser.isPermitted("*")) {
+        Authentication currentUser = SecurityContextHolder.getContext().getAuthentication();
+        if (!currentUser.getAuthorities().stream().anyMatch(a -> "*".equals(a.getAuthority()))) {
             LeomallAdmin existing = adminService.findById(anotherAdminId);
             if (existing != null && existing.getRoleIds() != null
                     && permissionService.checkSuperPermission(Arrays.asList(existing.getRoleIds()))) {
@@ -163,7 +163,7 @@ public class AdminAdminController {
         return ResponseUtil.ok(admin);
     }
 
-    @RequiresPermissions("admin:admin:delete")
+    @PreAuthorize("hasAuthority('admin:admin:delete')")
     @RequiresPermissionsDesc(menu = {"系统管理", "管理员管理"}, button = "删除")
     @PostMapping("/delete")
     public Object delete(@RequestBody LeomallAdmin admin) {
@@ -173,7 +173,7 @@ public class AdminAdminController {
         }
 
         // 管理员不能删除自身账号
-        Subject currentUser = SecurityUtils.getSubject();
+        Authentication currentUser = SecurityContextHolder.getContext().getAuthentication();
         LeomallAdmin currentAdmin = (LeomallAdmin) currentUser.getPrincipal();
         if (currentAdmin.getId().equals(anotherAdminId)) {
             return ResponseUtil.fail(ADMIN_DELETE_NOT_ALLOWED, "管理员不能删除自己账号");

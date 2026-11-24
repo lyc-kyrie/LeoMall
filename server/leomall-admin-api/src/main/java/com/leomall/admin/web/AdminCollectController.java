@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -28,7 +28,7 @@ public class AdminCollectController {
     private LeomallCollectService collectService;
 
 
-    @RequiresPermissions("admin:collect:list")
+    @PreAuthorize("hasAuthority('admin:collect:list')")
     @RequiresPermissionsDesc(menu = {"用户管理", "用户收藏"}, button = "查询")
     @GetMapping("/list")
     public Object list(String userId, String valueId,

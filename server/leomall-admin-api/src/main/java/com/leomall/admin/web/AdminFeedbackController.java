@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -30,7 +30,7 @@ public class AdminFeedbackController {
     @Autowired
     private LeomallFeedbackService feedbackService;
 
-    @RequiresPermissions("admin:feedback:list")
+    @PreAuthorize("hasAuthority('admin:feedback:list')")
     @RequiresPermissionsDesc(menu = {"用户管理", "意见反馈"}, button = "查询")
     @GetMapping("/list")
     public Object list(Integer userId, String username,

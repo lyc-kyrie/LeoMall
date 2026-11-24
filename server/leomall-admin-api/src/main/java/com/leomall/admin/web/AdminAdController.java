@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -14,7 +14,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 @RestController
@@ -26,7 +26,7 @@ public class AdminAdController {
     @Autowired
     private LeomallAdService adService;
 
-    @RequiresPermissions("admin:ad:list")
+    @PreAuthorize("hasAuthority('admin:ad:list')")
     @RequiresPermissionsDesc(menu = {"推广管理", "广告管理"}, button = "查询")
     @GetMapping("/list")
     public Object list(String name, String content,
@@ -50,7 +50,7 @@ public class AdminAdController {
         return null;
     }
 
-    @RequiresPermissions("admin:ad:create")
+    @PreAuthorize("hasAuthority('admin:ad:create')")
     @RequiresPermissionsDesc(menu = {"推广管理", "广告管理"}, button = "添加")
     @PostMapping("/create")
     public Object create(@RequestBody LeomallAd ad) {
@@ -62,7 +62,7 @@ public class AdminAdController {
         return ResponseUtil.ok(ad);
     }
 
-    @RequiresPermissions("admin:ad:read")
+    @PreAuthorize("hasAuthority('admin:ad:read')")
     @RequiresPermissionsDesc(menu = {"推广管理", "广告管理"}, button = "详情")
     @GetMapping("/read")
     public Object read(@NotNull Integer id) {
@@ -70,7 +70,7 @@ public class AdminAdController {
         return ResponseUtil.ok(ad);
     }
 
-    @RequiresPermissions("admin:ad:update")
+    @PreAuthorize("hasAuthority('admin:ad:update')")
     @RequiresPermissionsDesc(menu = {"推广管理", "广告管理"}, button = "编辑")
     @PostMapping("/update")
     public Object update(@RequestBody LeomallAd ad) {
@@ -85,7 +85,7 @@ public class AdminAdController {
         return ResponseUtil.ok(ad);
     }
 
-    @RequiresPermissions("admin:ad:delete")
+    @PreAuthorize("hasAuthority('admin:ad:delete')")
     @RequiresPermissionsDesc(menu = {"推广管理", "广告管理"}, button = "删除")
     @PostMapping("/delete")
     public Object delete(@RequestBody LeomallAd ad) {

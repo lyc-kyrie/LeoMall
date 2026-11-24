@@ -1,6 +1,6 @@
 # P3-1 重建：旧工作流在根目录跑 mvn verify（根目录无 pom）、引用不存在的
 # leomall-admin / leomall-vue 目录，CI 从未真正生效。现按真实目录结构重写：
-#   server/  Maven 多模块（JDK 8，纯单元测试，无需 MySQL/Redis）
+#   server/  Maven 多模块（JDK 17，纯单元测试，无需 MySQL/Redis）
 #   admin/   Vue2 管理后台（Node 18 + openssl-legacy-provider 构建）
 #   h5/      Vue2 移动端（同上）
 #   agent/   Python FastAPI（uv 锁定依赖，编译 + 导入冒烟）
@@ -15,7 +15,7 @@ on:
 
 jobs:
   backend:
-    name: Backend (Maven / JDK 8)
+    name: Backend (Maven / JDK 17)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '8'
+          java-version: '17'
           cache: maven
       - name: Build and unit tests
         run: mvn -B -ntp verify

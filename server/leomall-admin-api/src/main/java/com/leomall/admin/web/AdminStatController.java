@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.admin.vo.StatVo;
 import com.leomall.core.util.ResponseUtil;
@@ -25,7 +25,7 @@ public class AdminStatController {
     @Autowired
     private StatService statService;
 
-    @RequiresPermissions("admin:stat:user")
+    @PreAuthorize("hasAuthority('admin:stat:user')")
     @RequiresPermissionsDesc(menu = {"统计管理", "用户统计"}, button = "查询")
     @GetMapping("/user")
     public Object statUser() {
@@ -37,7 +37,7 @@ public class AdminStatController {
         return ResponseUtil.ok(statVo);
     }
 
-    @RequiresPermissions("admin:stat:order")
+    @PreAuthorize("hasAuthority('admin:stat:order')")
     @RequiresPermissionsDesc(menu = {"统计管理", "订单统计"}, button = "查询")
     @GetMapping("/order")
     public Object statOrder() {
@@ -50,7 +50,7 @@ public class AdminStatController {
         return ResponseUtil.ok(statVo);
     }
 
-    @RequiresPermissions("admin:stat:goods")
+    @PreAuthorize("hasAuthority('admin:stat:goods')")
     @RequiresPermissionsDesc(menu = {"统计管理", "商品统计"}, button = "查询")
     @GetMapping("/goods")
     public Object statGoods() {

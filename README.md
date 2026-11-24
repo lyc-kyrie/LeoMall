@@ -17,8 +17,8 @@
 
 ## 技术栈
 
-- 后端：Spring Boot 2.7.18 / Java 8（编译目标，JDK 17 可运行）/ Maven / MyBatis / Shiro / Druid / MySQL 8
-  （阶段2A 已从 2.1.5 跳版；下一步阶段2B：Java 17 + Boot 3.x + Spring Security）
+- 后端：Spring Boot 3.4.5 / Java 17 / Maven / MyBatis / Spring Security 6 + Spring Session / Druid / MySQL 8
+  （阶段2B 已完成 jakarta 迁移与 Shiro→Spring Security 替换；下一步阶段2C：聊天异步化）
 - 前端：Vue2 + vue-cli 3（webpack4），管理后台 Element UI 2.x，H5 Vant2
 - Agent：Python 3.11、FastAPI、AgentScope 2.x、Qdrant（可选）、SQLite
 
@@ -68,7 +68,7 @@ mvn clean package -DskipTests
 java -jar leomall-all/target/leomall-all-0.1.0-exec.jar --server.port=8080
 ```
 
-需 JDK 8+（编译目标 1.8，本机 JDK 17 亦可直接运行）；若环境变量存在 `SERVER__PORT`，启动前先 `unset SERVER__PORT`。
+需 **JDK 17+**（阶段2B 起编译目标 17，Boot 3.x 最低要求）；若环境变量存在 `SERVER__PORT`，启动前先 `unset SERVER__PORT`。
 
 ### 3. 前端
 
@@ -145,7 +145,7 @@ docker compose --profile cache --profile queue up -d --build
   （StateStore 语义、BCrypt、富文本消毒、IP 信任边界、金额比较等，31 项）。
   依赖 MySQL/Redis/第三方密钥的 22 个遗留集成测试由 surefire 集中排除，
   需要时在对应环境用 `mvn test -Dtest=XxxTest` 单独运行。
-- **CI**：`.github/workflows/main.yml` 按真实目录重建——backend（JDK 8，`server/` 下 `mvn verify`）、
+- **CI**：`.github/workflows/main.yml` 按真实目录重建——backend（JDK 17，`server/` 下 `mvn verify`）、
   admin/h5（Node 18 构建，需 `NODE_OPTIONS=--openssl-legacy-provider`）、agent（uv 锁定依赖 + 编译/导入冒烟）。
   Agent pytest 存在 15 个存量夹具失败（演示目录快照不匹配），修复前暂不作为 CI 门禁。
 - **devtools** 移入 Maven profile（`-Pdevtools` 启用），默认构建与打包不含热重启依赖；qiniu SDK 锁定精确版本。
@@ -153,7 +153,7 @@ docker compose --profile cache --profile queue up -d --build
 
 ## 接口前缀
 
-后端 REST 前缀统一为 `/leomall/admin/**` 与 `/leomall/wx/**`，前端代理与 Shiro 权限串已同步。
+后端 REST 前缀统一为 `/leomall/admin/**` 与 `/leomall/wx/**`，前端代理与 Spring Security 权限串已同步。
 
 ## 说明
 

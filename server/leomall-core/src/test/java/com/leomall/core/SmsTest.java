@@ -1,7 +1,6 @@
 package com.leomall.core;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import com.leomall.core.notify.NotifyService;
 import com.leomall.core.notify.NotifyType;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,8 +10,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.SyncTaskExecutor;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 
 import java.util.concurrent.Executor;
@@ -29,7 +26,6 @@ import java.util.concurrent.Executor;
  * 3. 在当前测试类设置好正确的手机号码
  */
 @WebAppConfiguration
-@RunWith(SpringRunner.class)
 @SpringBootTest
 public class SmsTest {
 

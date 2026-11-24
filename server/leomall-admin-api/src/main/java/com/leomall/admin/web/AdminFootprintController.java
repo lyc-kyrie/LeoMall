@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -27,7 +27,7 @@ public class AdminFootprintController {
     @Autowired
     private LeomallFootprintService footprintService;
 
-    @RequiresPermissions("admin:footprint:list")
+    @PreAuthorize("hasAuthority('admin:footprint:list')")
     @RequiresPermissionsDesc(menu = {"用户管理", "用户足迹"}, button = "查询")
     @GetMapping("/list")
     public Object list(String userId, String goodsId,

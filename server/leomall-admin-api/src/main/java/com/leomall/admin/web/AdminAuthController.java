@@ -1,17 +1,20 @@
 package com.leomall.admin.web;
 
-import com.google.code.kaptcha.Producer;
+import cn.hutool.captcha.CaptchaUtil;
+import cn.hutool.captcha.LineCaptcha;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.authc.AuthenticationException;
-import org.apache.shiro.authc.LockedAccountException;
-import org.apache.shiro.authc.UnknownAccountException;
-import org.apache.shiro.authc.UsernamePasswordToken;
-import org.apache.shiro.authz.annotation.RequiresAuthentication;
-import org.apache.shiro.subject.Subject;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import com.leomall.admin.service.LogHelper;
-import com.leomall.admin.shiro.AdminLoginGuard;
+import com.leomall.admin.security.AdminAccountException;
+import com.leomall.admin.security.AdminLoginGuard;
 import com.leomall.admin.util.Permission;
 import com.leomall.admin.util.PermissionUtil;
 import com.leomall.core.util.IpUtil;
@@ -28,17 +31,17 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.imageio.ImageIO;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpSession;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.util.*;
 
 import static com.leomall.admin.util.AdminResponseCode.*;
 
+/**
+ * 阶段2B：Shiro Subject.login → AuthenticationManager + Spring Session。
+ * 错误码/返回结构/验证码一次性消费/首登强制改密标记与原版完全一致。
+ */
 @RestController
 @RequestMapping("/leomall/admin/auth")
 @Validated
@@ -55,7 +58,7 @@ public class AdminAuthController {
     private LogHelper logHelper;
 
     @Autowired
-    private Producer kaptchaProducer;
+    private AuthenticationManager adminAuthenticationManager;
 
     @Autowired
     private AdminLoginGuard loginGuard;
@@ -70,24 +73,15 @@ public class AdminAuthController {
     }
 
     private String doKaptcha(HttpServletRequest request) {
-        // 生成验证码
-        String text = kaptchaProducer.createText();
-        BufferedImage image = kaptchaProducer.createImage(text);
+        // 阶段2B：kaptcha（javax.servlet）→ hutool-captcha；会话属性键不变
+        LineCaptcha captcha = CaptchaUtil.createLineCaptcha(100, 40, 4, 8);
         HttpSession session = request.getSession();
-        session.setAttribute("kaptcha", text);
-
-        try {
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            ImageIO.write(image, "jpeg", outputStream);
-            String base64 = Base64.getEncoder().encodeToString(outputStream.toByteArray());
-            return "data:image/jpeg;base64," + base64.replaceAll("\r\n", "");
-        } catch (IOException e) {
-            return null;
-        }
+        session.setAttribute("kaptcha", captcha.getCode());
+        return captcha.getImageBase64Data();
     }
 
     /*
-     *  { username : value, password : value }
+     *  { username : value, password : value, code : value }
      */
     @PostMapping("/login")
     public Object login(@RequestBody String body, HttpServletRequest request) {
@@ -115,17 +109,17 @@ public class AdminAuthController {
         }
         session.removeAttribute("kaptcha");
 
-        Subject currentUser = SecurityUtils.getSubject();
+        Authentication authentication;
         try {
-            currentUser.login(new UsernamePasswordToken(username, password));
-        } catch (UnknownAccountException uae) {
+            authentication = adminAuthenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(username, password));
+        } catch (AdminAccountException aae) {
+            logHelper.logAuthFail("登录", "用户帐号不可用");
+            return ResponseUtil.fail(ADMIN_INVALID_ACCOUNT, "用户帐号不可用");
+        } catch (BadCredentialsException bce) {
             loginGuard.recordFailure(username);
             logHelper.logAuthFail("登录", "用户帐号或密码不正确");
             return ResponseUtil.fail(ADMIN_INVALID_ACCOUNT, "用户帐号或密码不正确", doKaptcha(request));
-        } catch (LockedAccountException lae) {
-            logHelper.logAuthFail("登录", "用户帐号已锁定不可用");
-            return ResponseUtil.fail(ADMIN_INVALID_ACCOUNT, "用户帐号已锁定不可用");
-
         } catch (AuthenticationException ae) {
             loginGuard.recordFailure(username);
             logHelper.logAuthFail("登录", "认证失败");
@@ -133,8 +127,15 @@ public class AdminAuthController {
         }
         loginGuard.recordSuccess(username);
 
-        currentUser = SecurityUtils.getSubject();
-        LeomallAdmin admin = (LeomallAdmin) currentUser.getPrincipal();
+        // 会话固定攻击防护：认证成功后更换会话 ID（验证码会话已存在）
+        request.changeSessionId();
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        // Spring Security 6 显式保存：写入会话，后续请求由 SecurityContextHolderFilter 恢复
+        request.getSession().setAttribute(
+                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                SecurityContextHolder.getContext());
+
+        LeomallAdmin admin = (LeomallAdmin) authentication.getPrincipal();
         admin.setLastLoginIp(IpUtil.getIpAddr(request));
         admin.setLastLoginTime(LocalDateTime.now());
         adminService.updateById(admin);
@@ -151,30 +152,28 @@ public class AdminAuthController {
         adminInfo.put("avatar", admin.getAvatar());
 
         Map<Object, Object> result = new HashMap<Object, Object>();
-        result.put("token", currentUser.getSession().getId());
+        result.put("token", request.getSession().getId());
         result.put("adminInfo", adminInfo);
         result.put("mustChangePassword", mustChangePassword);
         return ResponseUtil.ok(result);
     }
 
-    /*
-     *
-     */
-    @RequiresAuthentication
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/logout")
-    public Object logout() {
-        Subject currentUser = SecurityUtils.getSubject();
-
+    public Object logout(HttpServletRequest request) {
         logHelper.logAuthSucceed("退出");
-        currentUser.logout();
+        SecurityContextHolder.clearContext();
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
         return ResponseUtil.ok();
     }
 
-
-    @RequiresAuthentication
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/info")
     public Object info() {
-        Subject currentUser = SecurityUtils.getSubject();
+        Authentication currentUser = SecurityContextHolder.getContext().getAuthentication();
         LeomallAdmin admin = (LeomallAdmin) currentUser.getPrincipal();
 
         Map<String, Object> data = new HashMap<>();
@@ -201,7 +200,7 @@ public class AdminAuthController {
             final String basicPackage = "com.leomall.admin";
             List<Permission> systemPermissions = PermissionUtil.listPermission(context, basicPackage);
             for (Permission permission : systemPermissions) {
-                String perm = permission.getRequiresPermissions().value()[0];
+                String perm = permission.getPermission();
                 String api = permission.getApi();
                 systemPermissionsMap.put(perm, api);
             }
@@ -216,8 +215,6 @@ public class AdminAuthController {
                 apis.clear();
                 apis.add("*");
                 return apis;
-                //                return systemPermissionsMap.values();
-
             }
         }
         return apis;

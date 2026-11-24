@@ -3,7 +3,7 @@ package com.leomall.core.task;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.stereotype.Component;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Executors;
 

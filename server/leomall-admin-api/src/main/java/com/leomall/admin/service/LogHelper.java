@@ -1,7 +1,7 @@
 package com.leomall.admin.service;
 
-import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.subject.Subject;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 import com.leomall.core.util.IpUtil;
 import com.leomall.db.domain.LeomallAdmin;
 import com.leomall.db.domain.LeomallLog;
@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * 这里的日志类型设计成四种（当然开发者需要可以自己扩展）
@@ -84,14 +84,10 @@ public class LogHelper {
     public void logAdmin(Integer type, String action, Boolean succeed, String result, String comment) {
         LeomallLog log = new LeomallLog();
 
-        Subject currentUser = SecurityUtils.getSubject();
-        if (currentUser != null) {
+        Authentication currentUser = SecurityContextHolder.getContext().getAuthentication();
+        if (currentUser != null && currentUser.getPrincipal() instanceof LeomallAdmin) {
             LeomallAdmin admin = (LeomallAdmin) currentUser.getPrincipal();
-            if (admin != null) {
-                log.setAdmin(admin.getUsername());
-            } else {
-                log.setAdmin("匿名用户");
-            }
+            log.setAdmin(admin.getUsername());
         } else {
             log.setAdmin("匿名用户");
         }

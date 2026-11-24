@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -27,7 +27,7 @@ public class AdminLogController {
     @Autowired
     private LeomallLogService logService;
 
-    @RequiresPermissions("admin:log:list")
+    @PreAuthorize("hasAuthority('admin:log:list')")
     @RequiresPermissionsDesc(menu = {"系统管理", "操作日志"}, button = "查询")
     @GetMapping("/list")
     public Object list(String name,

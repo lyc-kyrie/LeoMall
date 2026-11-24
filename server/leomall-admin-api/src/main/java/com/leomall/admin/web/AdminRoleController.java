@@ -1,9 +1,9 @@
 package com.leomall.admin.web;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.SecurityUtils;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
-import org.apache.shiro.subject.Subject;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.admin.util.AdminResponseCode;
 import com.leomall.admin.util.Permission;
@@ -25,7 +25,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.security.Security;
 import java.util.*;
 
@@ -44,7 +44,7 @@ public class AdminRoleController {
     @Autowired
     private LeomallAdminService adminService;
 
-    @RequiresPermissions("admin:role:list")
+    @PreAuthorize("hasAuthority('admin:role:list')")
     @RequiresPermissionsDesc(menu = {"系统管理", "角色管理"}, button = "角色查询")
     @GetMapping("/list")
     public Object list(String name,
@@ -71,7 +71,7 @@ public class AdminRoleController {
         return ResponseUtil.okList(options);
     }
 
-    @RequiresPermissions("admin:role:read")
+    @PreAuthorize("hasAuthority('admin:role:read')")
     @RequiresPermissionsDesc(menu = {"系统管理", "角色管理"}, button = "角色详情")
     @GetMapping("/read")
     public Object read(@NotNull Integer id) {
@@ -89,7 +89,7 @@ public class AdminRoleController {
         return null;
     }
 
-    @RequiresPermissions("admin:role:create")
+    @PreAuthorize("hasAuthority('admin:role:create')")
     @RequiresPermissionsDesc(menu = {"系统管理", "角色管理"}, button = "角色添加")
     @PostMapping("/create")
     public Object create(@RequestBody LeomallRole role) {
@@ -107,7 +107,7 @@ public class AdminRoleController {
         return ResponseUtil.ok(role);
     }
 
-    @RequiresPermissions("admin:role:update")
+    @PreAuthorize("hasAuthority('admin:role:update')")
     @RequiresPermissionsDesc(menu = {"系统管理", "角色管理"}, button = "角色编辑")
     @PostMapping("/update")
     public Object update(@RequestBody LeomallRole role) {
@@ -120,7 +120,7 @@ public class AdminRoleController {
         return ResponseUtil.ok();
     }
 
-    @RequiresPermissions("admin:role:delete")
+    @PreAuthorize("hasAuthority('admin:role:delete')")
     @RequiresPermissionsDesc(menu = {"系统管理", "角色管理"}, button = "角色删除")
     @PostMapping("/delete")
     public Object delete(@RequestBody LeomallRole role) {
@@ -179,7 +179,7 @@ public class AdminRoleController {
      *
      * @return 系统所有权限列表、角色权限、管理员已分配权限
      */
-    @RequiresPermissions("admin:role:permission:get")
+    @PreAuthorize("hasAuthority('admin:role:permission:get')")
     @RequiresPermissionsDesc(menu = {"系统管理", "角色管理"}, button = "权限详情")
     @GetMapping("/permissions")
     public Object getPermissions(Integer roleId) {
@@ -195,7 +195,7 @@ public class AdminRoleController {
             assignedPermissions = permissionService.queryByRoleId(roleId);
         }
 
-        Subject currentUser = SecurityUtils.getSubject();
+        Authentication currentUser = SecurityContextHolder.getContext().getAuthentication();
         LeomallAdmin currentAdmin = (LeomallAdmin) currentUser.getPrincipal();
         Integer[] roles = currentAdmin.getRoleIds();
         List<Integer> roleIds = Arrays.asList(roles);
@@ -219,7 +219,7 @@ public class AdminRoleController {
      * @param body
      * @return
      */
-    @RequiresPermissions("admin:role:permission:update")
+    @PreAuthorize("hasAuthority('admin:role:permission:update')")
     @RequiresPermissionsDesc(menu = {"系统管理", "角色管理"}, button = "权限变更")
     @PostMapping("/permissions")
     public Object updatePermissions(@RequestBody String body) {

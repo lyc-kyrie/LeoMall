@@ -1,20 +1,17 @@
 package com.leomall.admin;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import com.leomall.admin.util.Permission;
 import com.leomall.admin.util.PermissionUtil;
 import com.leomall.admin.vo.PermVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 
 import java.util.List;
 
 @WebAppConfiguration
-@RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest
 public class PermissionTest {
 

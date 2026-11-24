@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -24,7 +24,7 @@ public class AdminCommentController {
     @Autowired
     private LeomallCommentService commentService;
 
-    @RequiresPermissions("admin:comment:list")
+    @PreAuthorize("hasAuthority('admin:comment:list')")
     @RequiresPermissionsDesc(menu = {"商品管理", "评论管理"}, button = "查询")
     @GetMapping("/list")
     public Object list(String userId, String valueId,
@@ -36,7 +36,7 @@ public class AdminCommentController {
         return ResponseUtil.okList(commentList);
     }
 
-    @RequiresPermissions("admin:comment:delete")
+    @PreAuthorize("hasAuthority('admin:comment:delete')")
     @RequiresPermissionsDesc(menu = {"商品管理", "评论管理"}, button = "删除")
     @PostMapping("/delete")
     public Object delete(@RequestBody LeomallComment comment) {

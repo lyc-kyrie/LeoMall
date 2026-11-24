@@ -1,4 +1,4 @@
-package com.leomall.admin.shiro;
+package com.leomall.admin.security;
 
 import java.time.Duration;
 
@@ -12,6 +12,7 @@ import com.leomall.core.state.StateStore;
  * 同一账号 15 分钟窗口内连续失败 5 次锁定 15 分钟；登录成功即清零。
  * 阶段1：StateStore 支撑——启用 Redis 后计数与锁定跨实例共享，
  * 多实例部署下爆破者无法通过轮询实例绕过锁定。
+ * 阶段2B：随 Shiro→Spring Security 迁移至 security 包，逻辑不变。
  */
 @Component
 public class AdminLoginGuard {

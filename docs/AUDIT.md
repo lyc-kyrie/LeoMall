@@ -539,3 +539,90 @@ Spring Security → 2C 聊天异步化 → 2D Vue3 前端 → 2E 对象存储/�
 4. 前端 Vue2/webpack4 未动（CI 仍靠 openssl-legacy-provider）；阶段2D 迁 Vue3 + Vite。
 5. qiniu 7.2.29 / cos_api / qcloudsms 等本轮未动，随 2B/2E 评估。
 6. 运维注意：生产部署参数 `swagger.production=true` 需改为 `SWAGGER_ENABLED=false`。
+
+## 十一、阶段2B：Java 17 + Boot 3.4 + Spring Security 6（已完成）
+
+**目标**：完成 2A 预留的全部跳版项——Java 17 编译目标、Boot 3.x（jakarta）、Shiro→Spring Security 6、
+springdoc 2.x、JUnit5 + mockito5、移除循环依赖过渡开关。前端零改动（错误码/返回结构/Cookie 语义全部保持）。
+
+### 依赖跳版
+
+| 项 | 变更 | 位置 |
+|---|---|---|
+| Boot | 2.7.18 → **3.4.5**；`java.version` 1.8 → **17** | `server/pom.xml` |
+| MyBatis | mybatis-spring-boot-starter 2.3.2 → **3.0.4**（Boot 3 线） | `server/pom.xml` |
+| PageHelper | 1.4.7 → **2.1.0** | `server/pom.xml` |
+| Druid | `druid-spring-boot-starter` → **`druid-spring-boot-3-starter`** 1.2.23（jakarta 适配 artifact） | 父 pom + db pom |
+| springdoc | openapi-ui 1.7.0 → **openapi-starter-webmvc-ui 2.8.6**；`GroupedOpenApi` 包名迁 `org.springdoc.core.models` | 父 pom + admin/wx pom + 两套配置类 |
+| **Shiro 移除** | shiro-spring-boot-web-starter 1.13 删除 → `spring-boot-starter-security` + `spring-session-data-redis`（Boot BOM 管理版本） | admin pom |
+| 验证码 | kaptcha 2.3.2（依赖 javax.servlet）→ **hutool-captcha 5.8.34**（纯 Java）；`CaptchaUtil.createLineCaptcha(100,40,4,8)`，会话属性键仍 `kaptcha`，返回 PNG data URI | 父 pom + admin pom + AdminAuthController |
+| 测试 | junit-vintage-engine 移除；28 个测试文件全量迁 JUnit5；mockito 由 Boot 3 BOM 管理（5.x） | `server/pom.xml` + 各测试 |
+| javax→jakarta | servlet/validation/annotation.PostConstruct/PreDestroy/Resource 共 93 处 import 脚本化替换（javax.sql/crypto/imageio/net 属 JDK 不动）；连同注解/测试迁移共 **134 个文件** | server 全模块 |
+
+### 认证授权架构（Shiro → Spring Security 6）
+
+- **`admin/security/AdminAuthenticationProvider`**（替代 `AdminAuthorizingRealm`）：
+  principal 直接是 `LeomallAdmin`（业务代码 `(LeomallAdmin) getPrincipal()` 零改动）；
+  权限源仍为 DB `permissionService.queryByRoleIds`；authorities = 权限原串 + 角色加 `ROLE_` 前缀；
+  **超管 `"*"` 登录时展开为 PermissionUtil 全量权限**（Shiro WildcardPermission 语义的等价实现），同时保留 `"*"` 本身。
+  `LeomallAdmin` 补 `implements Serializable`（Redis 会话 JDK 序列化必需）。service 以 `@Lazy` 构造注入（沿用原 Realm 防事务失效注释）。
+- **注解映射**：`@RequiresPermissions("X")` → `@PreAuthorize("hasAuthority('X')")`（约 30 个控制器）；
+  `@RequiresAuthentication/@RequiresUser` → `isAuthenticated()`；`@RequiresGuest` → `isAnonymous()`；
+  `@RequiresRoles("admin")` → `hasRole('admin')`；`@EnableMethodSecurity` 启用方法级。
+  自定义 `@RequiresPermissionsDesc`（菜单/按钮）保留，角色管理 UI 权限树不变。
+- **`SecurityConfig`**：URL 规则与原 Shiro 过滤链对齐（auth/kaptcha、login、401、403、index/** 放行，
+  其余 `/leomall/admin/**` 需认证，wx 及其余 permitAll——wx 鉴权仍由 JwtHelper 控制器内完成）。
+  未认证/越权 **重定向到 auth/401、auth/403 端点输出原 JSON 语义（501 请登录 / 506 无操作权限，HTTP 200）**，前端拦截器零改动。
+  CSRF 关闭：SameSite=Lax Cookie + CORS 白名单默认空 + 全 JSON 写接口（与原 Shiro 时代一致，Shiro 亦无 CSRF 防护）。
+- **`AdminSessionConfig`**（替代 Shiro SessionManager/RedisSessionDAO）：`@EnableSpringHttpSession` +
+  排除 Boot `SessionAutoConfiguration`；`leomall.redis.enabled=true` → `RedisSessionRepository`
+  （键 `leomall:admin:session:sessions:{id}`，6h 滚动），否则 `MapSessionRepository`（6h）；
+  `CookieSerializer`：JSESSIONID + HttpOnly + SameSite=Lax + Path=/（P1-1 语义保持）。
+  登录成功 `request.changeSessionId()` 防会话固定；SecurityContext 显式写入会话（Security 6 显式保存语义）。
+- **`SecurityExceptionHandler`**：`@Order(HIGHEST_PRECEDENCE)` 的方法级越权 advice——
+  匿名→501、已认证权限不足→506（必须排在 GlobalExceptionHandler 的 Exception 兜底之前，否则被转 502）。
+- **`PermissionUtil`**：扫描 `@PreAuthorize` 正则提取 `hasAuthority('...')`，方法签名/输出结构不变；
+  `Permission` 模型改持权限字符串。`AdminLoginGuard` 从 shiro 包移入 security 包（逻辑不变）。
+- **删除**：ShiroConfig、AdminAuthorizingRealm、AdminWebSessionManager、RedisSessionDAO、KaptchaConfig、
+  ShiroExceptionHandler、core 的 `shiroSessionRedisTemplate` Bean。
+- **配置**：`spring.redis.*` → `spring.data.redis.*`；**`allow-circular-references=true` 过渡开关移除**——
+  双模式真实启动均未出现循环依赖报错（原环随 Shiro 装配消失）。
+
+### 跳版踩坑与修复（本轮实际遇到）
+
+1. **Spring 6.1 同名 Bean 冲突**：all-in-one 组件扫描扫到 admin/wx 模块独立启动类（简单类名同为 Application
+   → bean 名 `application`），6.1 收紧兼容判定后直接 `ConflictingBeanDefinitionException`（2.7 静默跳过）。
+   修复：all/all-war 启动类展开为 `@SpringBootConfiguration + @EnableAutoConfiguration + @ComponentScan`，
+   显式排除两个模块启动类（其注解 all 已具备）。
+2. **`Base64Utils` 被 Spring 6 移除**：ExpressService 改 `java.util.Base64`。
+3. **Boot 3.2+ 无处理器请求默认抛异常**：`NoHandlerFoundException` 被 Exception 兜底转成 502
+   （SWAGGER_ENABLED=false 时 /v3/api-docs 应 404）。GlobalExceptionHandler 补 404 专用处理
+   （NoHandlerFoundException + NoResourceFoundException）。
+4. **advice 顺序**：越权异常先被 GlobalExceptionHandler 捕获→502；SecurityExceptionHandler 加最高优先级后→506。
+5. **JUnit5 断言参数序**：JUnit4 消息前置 `assertEquals(msg, expected, actual)` 与 JUnit5 `(expected, actual, msg)`
+   不兼容——编译失败或语义颠倒，活跃测试逐处修正。
+6. Spring Session 3.4 API：`MapSessionRepository(Map)` 构造、`setRedisKeyNamespace`（非 setRedisNamespace）。
+
+### 验证（运行时级，双模式）
+
+- `mvn verify`：7 模块 BUILD SUCCESS，**31/31 测试通过（纯 JUnit5，vintage 已移除）**。
+- 临时 MySQL 8.0 容器（13306，37 表）+ 真实启动 exec jar：
+  - **Redis 态登录全链路**（从 Redis 会话哈希提取验证码完成真实登录）：
+    admin123 登录 errno=0、mustChangePassword=true（首登强制改密标记保持）；
+    `auth/info` roles=超级管理员、perms=`*`；超管 `admin/list`、`goods/list` errno=0（通配展开生效）；
+    会话键 TTL=21600s（6h）；**promotion123 登录访问 admin/list → errno=506 无操作权限**（方法级鉴权生效）；
+    退出后 info → 501；`role/permissions` 权限树 10 个一级菜单完整（PermissionUtil 重写验证）；
+    缺码 607 / 错码 606 / 未认证 501；`SWAGGER_ENABLED=false` 时 /v3/api-docs **404**。
+  - **内存态**：启动正常、会话不落 Redis（EXISTS=0）、home/goods/kaptcha/607/501 全通；
+    文档默认开启时 /v3/api-docs 200（222 paths）、admin 分组 200。
+  - wxjava 4.6.0 在 Boot 3/jakarta 运行时兼容：伪造 code 登录 errno=401。
+  - Cookie 原始头确认：`JSESSIONID=...; Path=/; HttpOnly; SameSite=Lax`。
+- 冒烟后已清理：应用进程停止、MySQL 容器删除、db15 测试键清空。
+
+### 残留与后续
+
+1. OSS/cos_api/qcloudsms 的 Java 17 运行时兼容未验证（冒烟 storage.active=local 不触发）；启用对象存储前需实测。
+2. `SWAGGER_ENABLED=false` 时 swagger-ui 的 webjar 静态页仍可访问（规格接口已 404，UI 无数据）；生产建议 nginx 一并拦截 /swagger-ui 路径。
+3. 22 个遗留集成测试已迁 JUnit5 但仍由 surefire 排除（依赖真实环境），后续阶段2E 建 Testcontainers 体系。
+4. 前端 Vue2/webpack4 未动（阶段2D）；聊天异步化（阶段2C）待推进。
+5. 运维注意：部署机需 **JDK 17+**；CI 已同步改 JDK 17。

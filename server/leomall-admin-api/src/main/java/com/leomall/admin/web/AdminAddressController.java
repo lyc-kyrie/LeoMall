@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -30,7 +30,7 @@ public class AdminAddressController {
     @Autowired
     private LeomallRegionService regionService;
 
-    @RequiresPermissions("admin:address:list")
+    @PreAuthorize("hasAuthority('admin:address:list')")
     @RequiresPermissionsDesc(menu = {"用户管理", "收货地址"}, button = "查询")
     @GetMapping("/list")
     public Object list(Integer userId, String name,

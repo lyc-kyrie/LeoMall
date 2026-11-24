@@ -1,6 +1,6 @@
 package com.leomall.db;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import com.leomall.db.util.DbUtil;
 
 import java.io.File;

@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.admin.dto.GoodsAllinone;
 import com.leomall.admin.service.AdminGoodsService;
@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 @RestController
 @RequestMapping("/leomall/admin/goods")
@@ -36,7 +36,7 @@ public class AdminGoodsController {
      * @param order
      * @return
      */
-    @RequiresPermissions("admin:goods:list")
+    @PreAuthorize("hasAuthority('admin:goods:list')")
     @RequiresPermissionsDesc(menu = {"商品管理", "商品管理"}, button = "查询")
     @GetMapping("/list")
     public Object list(Integer goodsId, String goodsSn, String name,
@@ -58,7 +58,7 @@ public class AdminGoodsController {
      * @param goodsAllinone
      * @return
      */
-    @RequiresPermissions("admin:goods:update")
+    @PreAuthorize("hasAuthority('admin:goods:update')")
     @RequiresPermissionsDesc(menu = {"商品管理", "商品管理"}, button = "编辑")
     @PostMapping("/update")
     public Object update(@RequestBody GoodsAllinone goodsAllinone) {
@@ -71,7 +71,7 @@ public class AdminGoodsController {
      * @param goods
      * @return
      */
-    @RequiresPermissions("admin:goods:delete")
+    @PreAuthorize("hasAuthority('admin:goods:delete')")
     @RequiresPermissionsDesc(menu = {"商品管理", "商品管理"}, button = "删除")
     @PostMapping("/delete")
     public Object delete(@RequestBody LeomallGoods goods) {
@@ -84,7 +84,7 @@ public class AdminGoodsController {
      * @param goodsAllinone
      * @return
      */
-    @RequiresPermissions("admin:goods:create")
+    @PreAuthorize("hasAuthority('admin:goods:create')")
     @RequiresPermissionsDesc(menu = {"商品管理", "商品管理"}, button = "上架")
     @PostMapping("/create")
     public Object create(@RequestBody GoodsAllinone goodsAllinone) {
@@ -97,7 +97,7 @@ public class AdminGoodsController {
      * @param id
      * @return
      */
-    @RequiresPermissions("admin:goods:read")
+    @PreAuthorize("hasAuthority('admin:goods:read')")
     @RequiresPermissionsDesc(menu = {"商品管理", "商品管理"}, button = "详情")
     @GetMapping("/detail")
     public Object detail(@NotNull Integer id) {

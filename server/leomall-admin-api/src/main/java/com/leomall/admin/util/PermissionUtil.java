@@ -2,11 +2,11 @@ package com.leomall.admin.util;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.admin.vo.PermVo;
 import org.springframework.context.ApplicationContext;
 import org.springframework.core.annotation.AnnotationUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,13 +15,20 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+/**
+ * 阶段2B：权限扫描从 Shiro @RequiresPermissions 改为 Spring Security @PreAuthorize，
+ * 仅提取 hasAuthority('...') 权限串；方法签名与输出结构保持不变。
+ */
 public class PermissionUtil {
+
+    private static final Pattern HAS_AUTHORITY = Pattern.compile("hasAuthority\\('([^']+)'\\)");
 
     public static List<PermVo> listPermVo(List<Permission> permissions) {
         List<PermVo> root = new ArrayList<>();
         for (Permission permission : permissions) {
-            RequiresPermissions requiresPermissions = permission.getRequiresPermissions();
             RequiresPermissionsDesc requiresPermissionsDesc = permission.getRequiresPermissionsDesc();
             String api = permission.getApi();
 
@@ -70,7 +77,7 @@ public class PermissionUtil {
             }
             if (leftPerm == null) {
                 leftPerm = new PermVo();
-                leftPerm.setId(requiresPermissions.value()[0]);
+                leftPerm.setId(permission.getPermission());
                 leftPerm.setLabel(requiresPermissionsDesc.button());
                 leftPerm.setApi(api);
                 perm2.getChildren().add(leftPerm);
@@ -97,16 +104,21 @@ public class PermissionUtil {
             Class<?> clz = bean.getClass();
             Class controllerClz = clz.getSuperclass();
             RequestMapping clazzRequestMapping = AnnotationUtils.findAnnotation(controllerClz, RequestMapping.class);
-            List<Method> methods = MethodUtils.getMethodsListWithAnnotation(controllerClz, RequiresPermissions.class);
+            List<Method> methods = MethodUtils.getMethodsListWithAnnotation(controllerClz, PreAuthorize.class);
             for (Method method : methods) {
-                RequiresPermissions requiresPermissions = AnnotationUtils.getAnnotation(method,
-                        RequiresPermissions.class);
+                PreAuthorize preAuthorize = AnnotationUtils.getAnnotation(method, PreAuthorize.class);
                 RequiresPermissionsDesc requiresPermissionsDesc = AnnotationUtils.getAnnotation(method,
                         RequiresPermissionsDesc.class);
 
-                if (requiresPermissions == null || requiresPermissionsDesc == null) {
+                if (preAuthorize == null || requiresPermissionsDesc == null) {
                     continue;
                 }
+                // 只收集权限型表达式；isAuthenticated/hasRole 等守卫不进入权限树
+                Matcher matcher = HAS_AUTHORITY.matcher(preAuthorize.value());
+                if (!matcher.find()) {
+                    continue;
+                }
+                String permissionString = matcher.group(1);
 
                 String api = "";
                 if (clazzRequestMapping != null) {
@@ -118,7 +130,7 @@ public class PermissionUtil {
                     api = "POST " + api + postMapping.value()[0];
 
                     Permission permission = new Permission();
-                    permission.setRequiresPermissions(requiresPermissions);
+                    permission.setPermission(permissionString);
                     permission.setRequiresPermissionsDesc(requiresPermissionsDesc);
                     permission.setApi(api);
                     permissions.add(permission);
@@ -128,7 +140,7 @@ public class PermissionUtil {
                 if (getMapping != null) {
                     api = "GET " + api + getMapping.value()[0];
                     Permission permission = new Permission();
-                    permission.setRequiresPermissions(requiresPermissions);
+                    permission.setPermission(permissionString);
                     permission.setRequiresPermissionsDesc(requiresPermissionsDesc);
                     permission.setApi(api);
                     permissions.add(permission);
@@ -145,7 +157,7 @@ public class PermissionUtil {
     public static Set<String> listPermissionString(List<Permission> permissions) {
         Set<String> permissionsString = new HashSet<>();
         for (Permission permission : permissions) {
-            permissionsString.add(permission.getRequiresPermissions().value()[0]);
+            permissionsString.add(permission.getPermission());
         }
         return permissionsString;
     }

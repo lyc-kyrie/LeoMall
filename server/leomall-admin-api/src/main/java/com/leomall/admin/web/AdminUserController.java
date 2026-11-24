@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.core.util.ResponseUtil;
 import com.leomall.core.validator.Order;
@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 @RestController
 @RequestMapping("/leomall/admin/user")
@@ -31,7 +31,7 @@ public class AdminUserController {
     @Autowired
     private LeomallUserService userService;
 
-    @RequiresPermissions("admin:user:list")
+    @PreAuthorize("hasAuthority('admin:user:list')")
     @RequiresPermissionsDesc(menu = {"用户管理", "会员管理"}, button = "查询")
     @GetMapping("/list")
     public Object list(String username, String mobile,
@@ -42,14 +42,14 @@ public class AdminUserController {
         List<LeomallUser> userList = userService.querySelective(username, mobile, page, limit, sort, order);
         return ResponseUtil.okList(userList);
     }
-    @RequiresPermissions("admin:user:list")
+    @PreAuthorize("hasAuthority('admin:user:list')")
     @RequiresPermissionsDesc(menu = {"用户管理", "会员管理"}, button = "详情")
     @GetMapping("/detail")
     public Object userDetail(@NotNull Integer id) {
     	LeomallUser user=userService.findById(id);
         return ResponseUtil.ok(user);
     }
-    @RequiresPermissions("admin:user:list")
+    @PreAuthorize("hasAuthority('admin:user:list')")
     @RequiresPermissionsDesc(menu = {"用户管理", "会员管理"}, button = "编辑")
     @PostMapping("/update")
     public Object userUpdate(@RequestBody LeomallUser user) {

@@ -9,15 +9,14 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <!-- 阶段2A：2.1.5 → 2.7.18（Java8 最后支持版，javax 仍可用）。
-             下一步阶段2B：Java17 + Boot3.x（javax→jakarta）+ Spring Security。 -->
-        <version>2.7.18</version>
+        <!-- 阶段2B：Boot 3.4.x + Java 17（javax→jakarta）+ Spring Security 6 替代 Shiro -->
+        <version>3.4.5</version>
         <relativePath/>
     </parent>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>1.8</java.version>
+        <java.version>17</java.version>
         <!-- P3-2：移除全局 maven.test.skip，CI mvn verify 真正执行测试。
              环境依赖型遗留集成测试由 surefire excludes 显式排除（见 build）。 -->
     </properties>
@@ -59,26 +58,21 @@
                 <version>${project.version}</version>
             </dependency>
 
-            <!-- Spring Boot Mybatis 依赖（阶段2A：与 Boot 2.7 对齐） -->
+            <!-- Spring Boot Mybatis 依赖（阶段2B：Boot 3 对齐 3.0.x） -->
             <dependency>
                 <groupId>org.mybatis.spring.boot</groupId>
                 <artifactId>mybatis-spring-boot-starter</artifactId>
-                <version>2.3.2</version>
+                <version>3.0.4</version>
             </dependency>
 
             <!-- Spring Boot pagehelper 依赖 -->
             <dependency>
                 <groupId>com.github.pagehelper</groupId>
                 <artifactId>pagehelper-spring-boot-starter</artifactId>
-                <version>1.4.7</version>
+                <version>2.1.0</version>
             </dependency>
 
-            <dependency>
-                <groupId>org.apache.shiro</groupId>
-                <artifactId>shiro-spring-boot-web-starter</artifactId>
-                <!-- P0-5：1.6.0 存在 CVE-2020-17523 / CVE-2023-34478 认证绕过，升级到 1.x 最新 -->
-                <version>1.13.0</version>
-            </dependency>
+            <!-- 阶段2B：Shiro 移除，认证/授权改 Spring Security 6（Boot BOM 管理版本） -->
 
             <!-- hibernate-validator 版本交由 Boot BOM 管理（2.7.18 → 6.2.5.Final） -->
 
@@ -91,7 +85,7 @@
 
             <dependency>
                 <groupId>com.alibaba</groupId>
-                <artifactId>druid-spring-boot-starter</artifactId>
+                <artifactId>druid-spring-boot-3-starter</artifactId>
                 <version>1.2.23</version>
             </dependency>
 
@@ -135,18 +129,18 @@
 
             <!-- starter-json / starter-mail 版本交由 Boot BOM 管理，不再硬编码 2.1.5 -->
 
-            <!-- 阶段2A：springfox 与 Boot 2.6+ 不兼容且已停止维护，迁移 springdoc-openapi 1.x
-                 （javax 版；阶段2B 升 springdoc 2.x）。UI 随包提供 /swagger-ui.html。 -->
+            <!-- 阶段2B：springdoc 2.x（jakarta / Boot 3）。UI 随包提供 /swagger-ui.html。 -->
             <dependency>
                 <groupId>org.springdoc</groupId>
-                <artifactId>springdoc-openapi-ui</artifactId>
-                <version>1.7.0</version>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>2.8.6</version>
             </dependency>
 
+        <!-- 阶段2B：kaptcha 依赖 javax.servlet，换 hutool-captcha（纯 Java，无 servlet 依赖） -->
         <dependency>
-            <groupId>com.github.penggle</groupId>
-            <artifactId>kaptcha</artifactId>
-            <version>2.3.2</version>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-captcha</artifactId>
+            <version>5.8.34</version>
         </dependency>
 
 		<dependency>
@@ -191,16 +185,8 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <!-- P3-9：移除 powermock 1.6.6 / mockito 1.10.19（与 starter-test 管理的
-             mockito 2.x 冲突且极旧）；唯一使用 PowerMock 的 BCryptTest 已改为纯 JUnit。
-             mockito5 + JUnit5 迁移随阶段 2 Boot 升级进行。 -->
-        <!-- 阶段2A：Boot 2.7 的 starter-test 默认只带 JUnit5；现存测试为 JUnit4，
-             加 vintage 引擎让其在 JUnit Platform 上继续运行（阶段2B 迁 JUnit5 后移除）。 -->
-        <dependency>
-            <groupId>org.junit.vintage</groupId>
-            <artifactId>junit-vintage-engine</artifactId>
-            <scope>test</scope>
-        </dependency>
+        <!-- P3-9/阶段2B：powermock/mockito1.x 已移除；测试已全量迁 JUnit5，
+             vintage 引擎随之移除，mockito 由 Boot 3 BOM 管理（5.x）。 -->
     </dependencies>
 
     <profiles>

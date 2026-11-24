@@ -2,13 +2,13 @@ package com.leomall.wx.config;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
-import org.springdoc.core.GroupedOpenApi;
+import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 阶段2A：springfox → springdoc-openapi 1.x。
+ * 阶段2A：springfox → springdoc；阶段2B：springdoc 2.x（jakarta / Boot 3）。
  * 在线文档：http://host:port/swagger-ui.html（分组 admin/wx）。
  *
  * P2-6 开关语义保留但更名：生产设 SWAGGER_ENABLED=false 整体关闭在线文档。

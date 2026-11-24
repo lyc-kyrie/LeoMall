@@ -2,7 +2,7 @@ package com.leomall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.leomall.admin.annotation.RequiresPermissionsDesc;
 import com.leomall.admin.vo.CategoryVo;
 import com.leomall.core.util.ResponseUtil;
@@ -13,7 +13,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +28,7 @@ public class AdminCategoryController {
     @Autowired
     private LeomallCategoryService categoryService;
 
-    @RequiresPermissions("admin:category:list")
+    @PreAuthorize("hasAuthority('admin:category:list')")
     @RequiresPermissionsDesc(menu = {"商场管理", "类目管理"}, button = "查询")
     @GetMapping("/list")
     public Object list() {
@@ -90,7 +90,7 @@ public class AdminCategoryController {
         return null;
     }
 
-    @RequiresPermissions("admin:category:create")
+    @PreAuthorize("hasAuthority('admin:category:create')")
     @RequiresPermissionsDesc(menu = {"商场管理", "类目管理"}, button = "添加")
     @PostMapping("/create")
     public Object create(@RequestBody LeomallCategory category) {
@@ -102,7 +102,7 @@ public class AdminCategoryController {
         return ResponseUtil.ok(category);
     }
 
-    @RequiresPermissions("admin:category:read")
+    @PreAuthorize("hasAuthority('admin:category:read')")
     @RequiresPermissionsDesc(menu = {"商场管理", "类目管理"}, button = "详情")
     @GetMapping("/read")
     public Object read(@NotNull Integer id) {
@@ -110,7 +110,7 @@ public class AdminCategoryController {
         return ResponseUtil.ok(category);
     }
 
-    @RequiresPermissions("admin:category:update")
+    @PreAuthorize("hasAuthority('admin:category:update')")
     @RequiresPermissionsDesc(menu = {"商场管理", "类目管理"}, button = "编辑")
     @PostMapping("/update")
     public Object update(@RequestBody LeomallCategory category) {
@@ -125,7 +125,7 @@ public class AdminCategoryController {
         return ResponseUtil.ok();
     }
 
-    @RequiresPermissions("admin:category:delete")
+    @PreAuthorize("hasAuthority('admin:category:delete')")
     @RequiresPermissionsDesc(menu = {"商场管理", "类目管理"}, button = "删除")
     @PostMapping("/delete")
     public Object delete(@RequestBody LeomallCategory category) {
@@ -137,7 +137,7 @@ public class AdminCategoryController {
         return ResponseUtil.ok();
     }
 
-    @RequiresPermissions("admin:category:list")
+    @PreAuthorize("hasAuthority('admin:category:list')")
     @GetMapping("/l1")
     public Object catL1() {
         // 所有一级分类目录
