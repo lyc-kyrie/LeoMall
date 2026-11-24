@@ -9,19 +9,21 @@ export function getHome() {
 }
 
 const CatalogList='/catalog/index'; //分类目录全部分类数据接口
-export function catalogList() {
+export function catalogList(config = {}) {
   return request({
     url: CatalogList,
-    method: 'get'
+    method: 'get',
+    ...config
   })
 }
 
 const CatalogCurrent='/catalog/current'; //分类目录当前分类数据接口
-export function catalogCurrent(query) {
+export function catalogCurrent(query, config = {}) {
   return request({
     url: CatalogCurrent,
     method: 'get',
-    params: query
+    params: query,
+    ...config
   })
 }
 
@@ -99,11 +101,12 @@ export function goodsCount() {
   })
 }
 export const GoodsList='/goods/list'; //获得商品列表
-export function goodsList(query) {
+export function goodsList(query, config = {}) {
   return request({
     url: GoodsList,
     method: 'get',
-    params: query
+    params: query,
+    ...config
   })
 }
 const GoodsCategory='/goods/category'; //获得分类数据
@@ -115,11 +118,12 @@ export function goodsCategory(query) {
   })
 }
 const GoodsDetail='/goods/detail'; //获得商品的详情
-export function goodsDetail(query) {
+export function goodsDetail(query, config = {}) {
   return request({
     url: GoodsDetail,
     method: 'get',
-    params: query
+    params: query,
+    ...config
   })
 }
 const GoodsRelated='/goods/related'; //商品详情页的关联商品（大家都在看）
@@ -251,6 +255,13 @@ export function topicRelated(query) {
 }
 
 const SearchIndex='/search/index'; //搜索关键字
+export function searchIndex(config = {}) {
+  return request({
+    url: SearchIndex,
+    method: 'get',
+    ...config
+  })
+}
 const SearchResult='/search/result'; //搜索结果
 const SearchHelper='/search/helper'; //搜索帮助
 const SearchClearHistory='/search/clearhistory'; //搜索历史清楚

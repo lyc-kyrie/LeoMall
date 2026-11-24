@@ -244,3 +244,29 @@ home / login / catalog / detail / sku / sku-added / checkout / cart / user / sea
 **验收环境说明**：内嵌浏览器不连续产帧（document visible 但 rAF 停摆），Vue transition 停在 enter-from 初态导致弹层截屏不可见；截屏时以测试侧 DOM 直落终态（仅验收会话内，不改应用代码）。真实浏览器帧正常，不受影响。
 
 **余量**：2D-2 分类/搜索/详情骨架三态；2D-3 购物车/结算/我的 + AgentChat 视觉；2D-4 admin 登录/框架/仪表盘；2D-5 admin 列表/表单 + AI 页。
+
+---
+
+## 八、2D-2 执行记录（2026-11-24）
+
+**范围**：分类/搜索/详情三页视觉重建 + 骨架三态基元；后端零改动。
+
+### 8.1 三态基元与共用商品卡（h5/src/components/）
+
+- `skeleton-block`：banner(16:9)/cols 网格/rows 文本行/thumb 方图四种基元组合；shimmer 1.4s，reduced-motion 关闭；底色 #ECEEF1（**不得与 --bg 同色**，否则灰底页上不可见）。
+- `empty-state` / `error-state`：圆底图标 + 文案 + 胶囊 CTA（空态可选 action、错误态固定重试 emit retry）。图标用**内联 SVG**——验收发现 vant 图标字体部分码位（warning-o/cross）不渲染，SVG 消除字体依赖；详情弹层关闭钮同步换 SVG。
+- `goods-card`：1:1 图 + 两行题 + 新品/热卖标签 + 红价 tabular + 划线价；搜索结果双列复用。
+- 三基元 main.js 全局注册；`api.js` 相关函数加可选 config 参（silentError），三态错误由页面自负责，不弹全局 toast/跳转；补 `searchIndex` 导出（热搜）。
+
+### 8.2 逐页
+
+- **分类**：左轨 --bg 底、active 白卡红字圆角 8；右顶品牌浅底 banner 卡（类目名+desc，替代外链 banner 图）；子类目三列圆角 8 卡（--bg 图 tile + 名）；flex 双栏各自滚动；加载骨架/错误重试/空子类三态。
+- **搜索**：胶囊搜索框 + focus-within 品牌环；热搜胶囊（search/index hotKeywordList）+ 历史胶囊（本地、上限 10、新词置顶、可清空含确认）；结果双列 goods-card + van-list 分页；首屏骨架/无结果空态/失败错误态；顺带修原 enterSearch 不写历史的缺陷。
+- **详情**：加载改骨架屏（banner+4 行 thumb）；错误 ErrorState 可重试；空态 EmptyState「去逛逛」回首页；价格卡 28 红粗 tabular + 划线价灰左距 8；规格/属性/运费与详情卡圆角 12 + 16 gutter；详情图圆角 12 + 12 内边距；**未登录不再查购物车角标**（修 501 全局 toast + 跳登录的匿名访问缺陷）。
+
+### 8.3 验收（design-shots/2d2-*，9 张）
+
+catalog / catalog-loading / search / search-result / search-empty / detail / detail-loading / detail-error / sku；控制台零错误。
+骨架截屏法：内嵌浏览器不产帧且本地 API <100ms，用主世界注入脚本延迟 XHR 3s + hash 切换触发重载取加载态（仅验收会话，不改应用代码）；错误态用不存在 id 999999999，重试按钮复请求回错误态验证通过。
+
+**余量**：2D-3 购物车/结算/我的 + AgentChat 视觉；2D-4 admin 登录/框架/仪表盘；2D-5 admin 列表/表单 + AI 页。

@@ -1,41 +1,45 @@
 <template>
   <div class="tab_class">
     <div class="tal_class_searchBox">
-      <van-search placeholder="点击前往搜索"/>
+      <van-search shape="round" placeholder="点击前往搜索"/>
       <div class="tal_class_searchMask" @click="$router.push({ name: 'search' })"></div>
     </div>
 
-    <div class="class_tree clearfix">
-    <ul class="class_tree_nav">
-      <li
-        v-for="(item, index) in categoryList"
-        :key="index"
-        :class="{active_nav: currentCategory.id == item.id}"
-        @click="changeCatalog(item.id)"
-      >{{item.name}}</li>
-    </ul>
-    <div class="class_tree_content">
-      <!-- 阶段2D 前置 quick wins：移除 litemall 字标图，类目描述改为流式排版 -->
-      <div class="box">
-        <span>{{currentCategory.desc}}</span>
-      </div>
-      <div class="class_tree_items_wrap clearfix">
-        <div @click="toItemList(item.id)" :key="i" v-for="(item, i) in currentSubCategoryList">
-          <div class="class_tree_item_img">
-            <img :src="item.picUrl" :alt="item.name">
+    <div class="class_tree">
+      <ul class="class_tree_nav">
+        <li
+          v-for="(item, index) in categoryList"
+          :key="index"
+          :class="{active_nav: currentCategory.id == item.id}"
+          @click="changeCatalog(item.id)"
+        >{{item.name}}</li>
+      </ul>
+      <div class="class_tree_content">
+        <SkeletonBlock v-if="state === 'loading'" banner :cols="3"/>
+        <ErrorState v-else-if="state === 'error'" :message="errMsg" @retry="retry"/>
+        <template v-else>
+          <div class="cat_banner">
+            <div class="cat_banner_name">{{currentCategory.name}}</div>
+            <div class="cat_banner_desc">{{currentCategory.desc}}</div>
           </div>
-          <div class="class_tree_item_name">{{item.name}}</div>
-        </div>
+          <EmptyState v-if="!currentSubCategoryList.length" text="该类目下暂无子类" icon="apps-o"/>
+          <div v-else class="cat_grid">
+            <div class="cat_cell"
+                 v-for="item in currentSubCategoryList"
+                 :key="item.id"
+                 @click="toItemList(item.id)">
+              <div class="cat_cell_img"><img :src="item.picUrl" :alt="item.name"></div>
+              <div class="cat_cell_name">{{item.name}}</div>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
-  </div>
-
   </div>
 </template>
 
 <script>
 import { catalogList, catalogCurrent } from '@/api/api';
-
 import { Search } from 'vant';
 
 export default {
@@ -44,7 +48,10 @@ export default {
     return {
       categoryList: [],
       currentCategory: {},
-      currentSubCategoryList: []
+      currentSubCategoryList: [],
+      state: 'loading',
+      errMsg: '',
+      retryId: null
     };
   },
 
@@ -54,19 +61,35 @@ export default {
 
   methods: {
     initData() {
-      catalogList().then(res => {
+      this.state = 'loading';
+      this.retryId = null;
+      catalogList({ silentError: true }).then(res => {
         let data = res.data.data;
         this.categoryList = data.categoryList;
-        this.currentCategory = res.data.data.currentCategory;
+        this.currentCategory = data.currentCategory;
         this.currentSubCategoryList = data.currentSubCategory;
+        this.state = 'ready';
+      }).catch(err => {
+        this.state = 'error';
+        this.errMsg = (err && err.data && err.data.errmsg) || '分类加载失败，请重试';
       });
     },
     changeCatalog(id) {
-      catalogCurrent({ id: id}).then(res => {
+      this.state = 'loading';
+      this.retryId = id;
+      catalogCurrent({ id: id }, { silentError: true }).then(res => {
         let data = res.data.data;
         this.currentCategory = data.currentCategory;
         this.currentSubCategoryList = data.currentSubCategory;
+        this.state = 'ready';
+      }).catch(err => {
+        this.state = 'error';
+        this.errMsg = (err && err.data && err.data.errmsg) || '分类加载失败，请重试';
       });
+    },
+    retry() {
+      if (this.retryId) this.changeCatalog(this.retryId);
+      else this.initData();
     },
     toItemList(id) {
       this.$router.push({
@@ -81,21 +104,21 @@ export default {
 };
 </script>
 
-
 <style lang="scss" scoped>
-@import '../../assets/scss/mixin';
-
 .tab_class {
-  overflow: hidden;
-  background-color: #fff;
-}
-
-.height-fix {
-  padding-bottom: 42px;
+  background-color: var(--bg);
 }
 
 .tal_class_searchBox {
   position: relative;
+  background: #fff;
+
+  :deep(.van-search) {
+    padding: 8px 12px;
+  }
+  :deep(.van-search__content) {
+    background: var(--bg);
+  }
 }
 
 .tal_class_searchMask {
@@ -107,81 +130,94 @@ export default {
   z-index: 9;
 }
 
-
-.box {
-  padding: 12px 16px 0;
-  text-align: left;
-  font-family: PingFangSC-Light, helvetica, 'Heiti SC';
-  font-size: 13px;
-  color: $font-color-gray;
-}
-.box span {
-  line-height: 20px;
-}
 .class_tree {
-  position: relative;
-  background-color: #fff;
-  overflow-x: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  height: calc(100vh - 104px);
   overflow: hidden;
-  height: 100%;
-  box-sizing: border-box;
 }
+
 .class_tree_nav {
-  float: left;
-  width: 100px;
-  height: 100%;
-  background-color: #fff;
-  overflow: scroll;
+  width: 96px;
+  flex-shrink: 0;
+  background-color: var(--bg);
+  overflow-y: auto;
+  padding: 4px 0;
+
   > li {
-    @include one-border;
-    height: 40px;
-    line-height: 40px;
+    height: 44px;
+    line-height: 44px;
+    margin: 4px 8px;
+    border-radius: 8px;
     text-align: center;
-    border-left: 2px solid $bg-color;
+    font-size: 13px;
+    color: var(--text-2);
   }
   > li.active_nav {
     background-color: #fff;
-    border-left: 2px solid $red;
-    color: $red;
+    color: var(--brand);
+    font-weight: 600;
   }
 }
-.class_tree_content {
-  margin-left: 100px;
-  height: 100%;
-  overflow-x: hidden;
-  overflow-y: scroll;
-  .van-icon-arrow {
-    font-size: $font-size-small;
-  }
-  .class_tree_items_wrap {
-    padding: 10px 20px;
-    margin-right: -3%;
-    margin-top: 12px;
-    text-align: center;
-    > div {
-      float: left;
-      padding-right: 3%;
-      box-sizing: border-box;
-      width: 33.333%;
-      margin-bottom: 20px;
-    }
-    img {
-      max-width: 100%;
-    }
 
-    .class_tree_item_img {
-      display: inline-block;
-      max-width: 100%;
-      width: 70px;
-      height: 70px;
-    }
-    .class_tree_item_name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+.class_tree_content {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+  padding: 12px 12px 60px;
+}
+
+.cat_banner {
+  background: var(--brand-soft);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.cat_banner_name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.cat_banner_desc {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+
+.cat_grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.cat_cell {
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.cat_cell_img {
+  aspect-ratio: 1 / 1;
+  background: var(--bg);
+  border-radius: 8px;
+  overflow: hidden;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
   }
+}
+
+.cat_cell_name {
+  font-size: 12px;
+  color: var(--text-1);
+  margin-top: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

@@ -12,6 +12,9 @@ import '@/assets/scss/iconfont/iconfont.css';
 import VueCountdown from '@chenfengyuan/vue-countdown';
 import { yuan, dateFormat } from '@/filter';
 import goodsDefaultImg from '@/assets/images/goods_default.png';
+import SkeletonBlock from '@/components/skeleton-block/index.vue';
+import EmptyState from '@/components/empty-state/index.vue';
+import ErrorState from '@/components/error-state/index.vue';
 
 const app = createApp(App);
 
@@ -21,6 +24,10 @@ app.config.globalProperties.dateFormat = dateFormat;
 
 app.component('VueCountdown', VueCountdown);
 app.component('countdown', VueCountdown);
+// 阶段2D-2：三态基元全局注册
+app.component('SkeletonBlock', SkeletonBlock);
+app.component('EmptyState', EmptyState);
+app.component('ErrorState', ErrorState);
 
 app.use(store);
 app.use(router);

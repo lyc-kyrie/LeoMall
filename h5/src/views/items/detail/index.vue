@@ -1,10 +1,14 @@
 <template>
   <div class="item_detail">
-    <!-- 阶段2D 前置 quick wins：加载守卫，杜绝加载期 ¥NaN 裸奔 -->
-    <div v-if="!goods.info.id" class="detail-loading">
-      <van-loading type="spinner" color="#D93A3A" />
-    </div>
-    <template v-if="goods.info.id">
+    <!-- 阶段2D-2：骨架屏三态（加载/空/错），错误可重试、空态可去逛逛 -->
+    <SkeletonBlock v-if="state === 'loading'" banner :rows="4" thumb/>
+    <ErrorState v-else-if="state === 'error'" :message="errMsg" @retry="initData"/>
+    <EmptyState v-else-if="state === 'empty'"
+                text="商品不存在或已下架"
+                icon="goods-collect-o"
+                actionText="去逛逛"
+                @action="$router.push('/')"/>
+    <template v-if="state === 'ready'">
     <van-swipe :autoplay="3000">
       <van-swipe-item v-for="(image, index) in goods.info.gallery" :key="index">
         <img v-lazy="image" width="100%">
@@ -41,7 +45,10 @@
           <div class="sku_price">¥{{ skuPrice }}</div>
           <div class="sku_selected">{{ selectedText || '请选择规格' }}</div>
         </div>
-        <van-icon name="cross" class="sku_close" @click="showSku = false"/>
+        <svg class="sku_close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" @click="showSku = false">
+          <line x1="6" y1="6" x2="18" y2="18"/>
+          <line x1="18" y1="6" x2="6" y2="18"/>
+        </svg>
       </div>
       <div class="sku_body">
         <div class="sku_group" v-for="(spec, si) in goods.specificationList" :key="spec.id">
@@ -117,7 +124,9 @@ export default {
       selected: [],
       selectedNum: 1,
       propsPopup: false,
-      showSku: false
+      showSku: false,
+      state: 'loading',
+      errMsg: ''
     };
   },
 
@@ -156,6 +165,7 @@ export default {
   watch: {
     itemId() {
       this.goods = { userHasCollect: 0, info: { gallery: [] } };
+      this.state = 'loading';
       this.initData();
     }
   },
@@ -169,15 +179,28 @@ export default {
       this.showSku = true;
     },
     initData() {
-      goodsDetail({ id: this.itemId }).then(res => {
-        this.goods = res.data.data;
+      this.state = 'loading';
+      goodsDetail({ id: this.itemId }, { silentError: true }).then(res => {
+        const data = res.data.data;
+        if (!data || !data.info || !data.info.id) {
+          this.state = 'empty';
+          return;
+        }
+        this.goods = data;
         this.selected = [];
         this.selectedNum = 1;
+        this.state = 'ready';
+      }).catch(err => {
+        this.state = 'error';
+        this.errMsg = (err && err.data && err.data.errmsg) || '商品加载失败，请重试';
       });
 
-      cartGoodsCount().then(res => {
-        this.cartInfo = res.data.data;
-      });
+      // 未登录不查购物车角标，避免 501 全局 toast + 跳登录
+      if (this.isLogin) {
+        cartGoodsCount().then(res => {
+          this.cartInfo = res.data.data;
+        }).catch(() => {});
+      }
     },
     toCart() {
       this.$router.push({
@@ -338,31 +361,30 @@ export default {
 
 <style lang="scss" scoped>
 .item_detail {
+  background: var(--bg);
   img {
     max-width: 100%;
   }
 }
 
-.detail-loading {
-  padding: 120px 0;
-  text-align: center;
-  background-color: #fff;
-}
-
 .item_cell_group {
-  margin-bottom: 15px;
+  margin: 0 16px 12px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .item_price {
-  font-size: 20px;
-  color: $red;
-  margin-right: 10px;
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand);
 }
 
 .item_market_price {
-  color: $font-color-gray;
+  color: var(--text-3);
   text-decoration: line-through;
-  font-size: $font-size-small;
+  font-size: 12px;
+  margin-left: 8px;
 }
 
 .item-title {
@@ -388,6 +410,9 @@ export default {
 
 .item_desc {
   background-color: #fff;
+  margin: 0 16px 12px;
+  border-radius: 12px;
+  overflow: hidden;
   :deep(p) {
     padding: 0 10px;
     margin-block-start: 0 !important;
@@ -396,7 +421,12 @@ export default {
   :deep(img) {
     max-width: 100%;
     display: block;
+    border-radius: 12px;
   }
+}
+
+.item_desc_wrap {
+  padding: 12px;
 }
 
 .item_desc_title {
@@ -438,7 +468,9 @@ export default {
 
 .sku_close {
   color: var(--text-3);
-  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .sku_body {
