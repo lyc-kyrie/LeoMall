@@ -299,3 +299,115 @@ cart / checkout / user / chat / chat-recs / chat-history；控制台零错误（
 真实链路：Agent 回复 5 件推荐渲染双列商品卡；历史抽屉 5 条会话、切换还原对应对话；结算地址卡用冒烟地址（/wx/address/save，头名 X-Leomall-Token）呈现完整态。
 
 **余量**：2D-4 admin 登录/框架/仪表盘；2D-5 admin 列表/表单 + AI 页。
+
+---
+
+## 十、2D-4 执行记录（2026-11-24，含崩溃会话续接）
+
+**范围**：admin 整应用 Vue2→Vue3 + webpack→Vite5 + Element UI→Element Plus + echarts4→5；
+登录/框架/仪表盘视觉重建。后端零改动。**主色沿用用户 2026-11-24 反转拍板的蓝 #1890ff**
+（element-theme.scss CSS variables 映射，非编译期 SCSS 主题）。
+
+### 10.1 崩溃会话已完成部分（本轮核实确认）
+
+前一 session 于 16:20 左右中断（最后改动 locales），工程层与大部分迁移实际已落地：
+package.json（vue3.5/EP2.9/vite5/echarts5/vue-i18n9）、vite.config.js（@tokens alias +
+svg-icons 插件 + 同源代理剥 Origin）、index.html、四个 .env 改 VITE_BASE_API、
+main.js（createApp + EP 全量 + 图标全局注册 + filters 绑实例 mixin + i18n legacy）、
+router4（hash + 按名 resetRouter）/store4/permission 守卫（P0-3 强制改密拦截保留）、
+约 30 个视图机械移植、布局浅色侧栏/Navbar/TagsView 胶囊、登录页重写（品牌 L 标 + 白卡 +
+验证码圆角容器 + 语言切换收进卡右上）、仪表盘 KPI 4 卡 + echarts5 双趋势图（vue-count-to 移除）。
+**未做**：构建验证、运行时验收、执行记录——本轮续接完成。
+
+### 10.2 本轮修复（构建/运行时阻断与缺陷）
+
+| # | 问题 | 修复 | 文件 |
+|---|---|---|---|
+| 1 | 根模板下孤儿 `<template #footer>`（机械替换 Vue2 游离 slot div 所致），Vue3 编译器直接崩溃 | 还原为普通 div（页面底部操作行） | `promotion/topicCreate.vue`、`topicEdit.vue` |
+| 2 | element-plus 引 `@vue/shared` 被 npm 嵌套在 vue 下，Rollup 解析失败 | 显式声明 `@vue/shared@^3.5.13` | `package.json` |
+| 3 | `qs` 为 webpack 时代提升的传递依赖，新包表丢失 | 显式声明 qs | `package.json`、`api/order.js` 引用不变 |
+| 4 | Node `path` 浏览器不可用；path-browserify 的 resolve 依赖 `process.cwd()` 运行时报错 | 自写纯浏览器 `utils/route-path.js`（posix resolve 语义，cwd 恒 '/'），两处调用点改引；不引 path-browserify | 新增 `route-path.js`、`SidebarItem.vue`、`TagsView/index.vue` |
+| 5 | `api/profile.js` 导出名历史笔误 `rmotice`（webpack 仅告警、运行时删除通知本就是坏的），Rollup 报错 | 更名 `rmNotice` | `api/profile.js` |
+| 6 | 外链路由顶级 path `external-link` 无 `/` 前缀 + 子路由 URL 含 `:` 被当参数解析，vue-router4 addRoute 抛错**中断权限守卫、登录卡死** | 父路由 `/external-link`；子路由改安全 slug，URL 移 `meta.link`；SidebarItem 增 `linkOf` 优先取 meta.link 渲染 `<a>` | `router/index.js`、`SidebarItem.vue` |
+| 7 | store size 默认 `medium`（element-ui 遗值），EP el-config-provider prop 校验告警 | `normalizeSize`：medium→default、mini→small，state 与 SET_SIZE 双入口归一 | `store/modules/app.js` |
+| 8 | 路由组件对象进 vuex 响应式 state（Vue3 性能警告） | `rawRoutes` + `markRaw` | `store/modules/permission.js` |
+| 9 | `Item.vue` render 里 `h('svg-icon')`——Vue3 字符串标签是原生元素不解析全局组件，**侧栏 17 个图标全部丢失** | 改 `h(SvgIcon)` 传组件对象 | `Sidebar/Item.vue` |
+| 10 | `toPreview` 渲染期写响应式行数据（`item.preview=[url]` 每次新数组），**ElTableBody 无限递归更新**（列表页 100+ unhandledrejection） | 改纯函数 `return [url]`（无任何读取方依赖 row.preview，已核实） | `utils/index.js` |
+| 11 | 订单趋势空数据裸坐标轴貌似渲染失败 | rows 空时 echarts graphic 居中「近 30 日暂无数据」 | `dashboard/index.vue` |
+| 12 | 旧主题残留：`element-variables.scss`（编译期 `~element-ui` 全量 import，已无引用）；`element-ui.scss` 含 EP 下有害/失效 hack | 删死文件；重建为 `element-plus.scss`（保留全站列表页在用的 small-padding/fixed-width 工具类改 EP 语法；删 .el-dialog transform hack、.el-button--mini、失效 range 规则） | `styles/` |
+| 13 | CI 前端仍挂 `NODE_OPTIONS=--openssl-legacy-provider`（webpack4 遗物） | 双端均已 Vite，移除该 env 并更新注释 | `.github/workflows/main.yml` |
+
+### 10.3 验收（design-shots/2d4-*，6 张）
+
+- **构建**：`npm run build` 通过（18.4s，635+ 模块）；修复后复跑无回归。
+- **运行时**（本机 MySQL + Boot 3.4.5 exec jar + Vite dev 9527）：
+  - login：错码→606 EP 通知、错密→错误通知、验证码失败自动刷新；
+  - **P0-3 强制改密全链路**：种子口令登录→守卫拦截跳 `/profile/password`→改密成功→放行仪表盘；
+  - dashboard：KPI 4 卡（1/239/244/1，浅色图标底块 + tabular 数字）+ echarts5 双趋势
+    （订单趋势空态提示、商品趋势当日 1 点）；
+  - 框架：浅色侧栏图标/active 浅蓝底左条、面包屑、TagsView 胶囊多标签、折叠 64px 图标轨、
+    外链 7 条正确渲染 `<a href>`；
+  - 列表冒烟：商品列表 238 条数据/标签/展开行/批量删除禁用态正常；
+  - 修复后新会话控制台零错误（unhandledrejection 监听 0 条）。
+- 截屏：2d4-login / 2d4-force-password / 2d4-dashboard / 2d4-list-smoke / 2d4-collapse / 2d4-external。
+
+**运维注意**：本机 admin123 口令在早前会话测试中被改（未知值），本轮重置回种子后走强制改密
+流程设为 **Admin@2026**（仅本机开发库）；验收用后端（8080）与 admin dev（9527）保持运行中。
+
+**余量（2D-5）**：admin 列表/表单通用规范（PageHeader/筛选卡/表格容器/空态插画）+ AI 会话/统计页；
+仪表盘完整规格中的待办卡/最近订单/AI 导购入口卡；TinymceEditor 富文本与 xlsx 导出等
+列表/表单页运行时冒烟（本轮仅商品列表冒烟，构建已全量通过）。
+
+---
+
+## 十一、2D-5 执行记录（2026-11-24）
+
+**范围**：admin 列表/表单通用规范 + AI 会话/统计页视觉重建 + 仪表盘补全。后端零改动。
+
+### 11.1 列表页通用规范（全局样式层，一次覆盖全部列表页）
+
+- 新增 `styles/list-page.scss`（index.scss 引入）：页面 --bg 底、筛选白色圆角 12 卡、
+  表格容器圆角 12 + 静置阴影、空态插画（内联 SVG 收纳盒）+ 辅助色文案、分页右对齐透明底
+  （`div.pagination-container` 提权压过组件 scoped 同特异性规则）。
+- 表头/斑马纹走 EP CSS 变量（element-theme.scss 增 `--el-table-header-bg-color` 等 4 项）。
+- 机械 pass：33 个视图 47 处 `<el-table>` 统一加 `stripe`、去 `border`（竖边框清零，
+  正则断言 `(?=[\s>])` 避免误伤 el-table-column；已验证 stripe 47 / border 残留 0）。
+
+### 11.2 仪表盘补全（复用 KPI 规范，按权限显隐）
+
+- 待办卡：待发货（order/list orderStatusArray=[201]）/ 待审核售后（aftersale/list status=1）
+  计数 + 跳转；最近订单表（order/list 前 5 条，订单号/收货人/实付/状态/时间 + 查看全部）；
+  AI 导购入口卡（agent/stats 会话数 + 点击率，跳推荐效果）。
+- 三块均 `checkPermission` 守卫（无权限隐藏，promotion123 等受限账号不触发 506）。
+- **库存预警待办未做**：无现成后端端点，2D 零后端改动原则下记为余量。
+
+### 11.3 AI 会话/统计页
+
+- sessions.vue 详情弹层：消息表 → **对话时间线气泡**（用户品牌红右对齐 / 助手白卡左对齐，
+  复用 H5 规范；助手 meta 行 model/latency/降级 tag/时间；按 id 升序保证对话顺序）；
+  推荐表 → 商品卡网格（图/名/红价/点击 tag/rank/score）。
+- stats.vue：6 KPI 卡改仪表盘规范（浅色图标底块 + tabular 数字）；新增 echarts5
+  **推荐转化漏斗**（曝光→点击，空数据居中提示）；热推榜表格容器化。
+
+### 11.4 表单页通用规范
+
+- 新增 `styles/form-page.scss`：分组 el-card 圆角 12 无边框 + h3 节标题分隔线；
+  `.op-container` 改 **sticky 底部操作条**（右对齐、上浮阴影）。
+- **关键修复**：AppMain `.app-main` `overflow:hidden` → `overflow:clip`——hidden 产生
+  滚动容器使 sticky 失效，clip 同样裁剪过渡溢出但保留 sticky。
+- 商品创建/编辑本已按 介绍/规格/库存/参数 四组 el-card 组织，无需改结构。
+
+### 11.5 验收（design-shots/2d5-*，6 张）
+
+- 构建复跑通过（20.2s）；控制台零错误（unhandledrejection 监听 0 条）。
+- 仪表盘：待办 0/0、AI 5 会话 6.52%、最近订单 1 条（系统取消 ¥889）真实数据；
+- 统计页：KPI 6 卡 + 漏斗 138→9 + 热推榜 10 行；会话详情：红白气泡 + 降级 tag + 5 张推荐卡；
+- 列表：筛选卡/表头 --bg/斑马纹/空态插画（搜 999999999）/分页右对齐；
+- 表单：四组卡 + TinymceEditor 工具栏正常渲染（中文菜单）+ sticky 操作条中段滚动悬浮验证；
+- **xlsx 导出冒烟**：商品列表导出按钮走 Export2Excel（file-saver/xlsx 崩溃会话已声明），零 rejection。
+- 截屏：2d5-dashboard / 2d5-agent-stats / 2d5-agent-session / 2d5-list / 2d5-empty / 2d5-form。
+
+**阶段 2D 至此全部完成**（2D-1 h5 工程 / 2D-2 首页分类搜索 / 2D-3 购物车结算我的 + AgentChat /
+2D-4 admin 登录框架仪表盘 / 2D-5 列表表单 + AI 页）。
+**遗留小项**：库存预警待办需后端端点（归入后续后端迭代）；PageHeader 标题描述区未逐页添加
+（面包屑已承担定位，列表页视觉规范已统一）。
