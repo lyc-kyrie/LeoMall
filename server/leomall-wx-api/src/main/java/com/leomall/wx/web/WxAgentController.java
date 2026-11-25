@@ -18,6 +18,7 @@ import com.leomall.wx.service.AgentGateway;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,7 +26,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.async.DeferredResult;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -133,16 +136,117 @@ public class WxAgentController {
 
     /** 聊天重活（在 agentChatExecutor 线程执行）：会话 → Agent → 校验落库 → 商品卡。 */
     private Object doChat(Integer userId, String requestedSessionId, String query) {
-        String sessionId = requestedSessionId;
+        LeomallAgentSession session = resolveSession(userId, requestedSessionId, query);
+        long started = System.currentTimeMillis();
+        Map<String, Object> reply;
+        try {
+            reply = agentGateway.chat(session.getSessionId(), userId, query);
+        } catch (Exception e) {
+            logger.error("调用智能导购 Agent 失败", e);
+            return ResponseUtil.fail(802, "智能助手暂时不可用，请稍后重试");
+        }
+        int latencyMs = (int) (System.currentTimeMillis() - started);
+        return ResponseUtil.ok(persistTurn(userId, session, query, reply, latencyMs));
+    }
+
+    /**
+     * 一轮对话的流式版本（2026-11-25）：SSE 逐 token 推送，done 事件给与 /chat 相同的数据结构。
+     *
+     * 事件协议（H5 fetch 流消费）：
+     *   event: delta  data: {"token": "..."}          —— Agent 原始 token 透传
+     *   event: done   data: ResponseUtil.ok(data)      —— 含校验后的商品卡 / sessionId / reply
+     *   event: error  data: ResponseUtil.fail(...)     —— 803 限流 / 802 不可用 / 501 未登录等
+     *
+     * 守卫（限流/配额/并发）、会话隔离、推荐逐条主库校验与 /chat 完全一致。
+     */
+    @PostMapping("chat/stream")
+    public SseEmitter chatStream(@LoginUser Integer userId, @RequestBody String body) {
+        SseEmitter emitter = new SseEmitter(chatAsyncTimeoutMs);
+        if (userId == null) {
+            sendEvent(emitter, "error", JacksonUtil.toJson(ResponseUtil.unlogin()));
+            emitter.complete();
+            return emitter;
+        }
+        String query = JacksonUtil.parseString(body, "query");
+        if (StringUtils.isEmpty(query) || query.trim().isEmpty()) {
+            sendEvent(emitter, "error", JacksonUtil.toJson(ResponseUtil.badArgument()));
+            emitter.complete();
+            return emitter;
+        }
+        final String trimmedQuery = query.trim().length() > MAX_QUERY_LENGTH
+                ? query.trim().substring(0, MAX_QUERY_LENGTH) : query.trim();
+
+        String reject = agentChatGuard.tryAcquire(userId);
+        if (reject != null) {
+            sendEvent(emitter, "error", JacksonUtil.toJson(ResponseUtil.fail(803, reject)));
+            emitter.complete();
+            return emitter;
+        }
+        final String requestedSessionId = JacksonUtil.parseString(body, "sessionId");
+        emitter.onTimeout(() -> {
+            logger.warn("导购流式聊天超时（" + chatAsyncTimeoutMs + "ms），userId=" + userId);
+            emitter.complete();
+        });
+
+        try {
+            agentChatExecutor.execute(() -> {
+                try {
+                    LeomallAgentSession session = resolveSession(userId, requestedSessionId, trimmedQuery);
+                    long started = System.currentTimeMillis();
+                    Map<String, Object> reply = agentGateway.chatStream(
+                            session.getSessionId(), userId, trimmedQuery,
+                            deltaJson -> {
+                                try {
+                                    emitter.send(SseEmitter.event().name("delta")
+                                            .data(deltaJson, MediaType.APPLICATION_JSON));
+                                } catch (IOException | IllegalStateException e) {
+                                    // 买家端已断开：中止上游读取，不计熔断
+                                    throw new AgentGateway.ClientDisconnectedException(e);
+                                }
+                            });
+                    int latencyMs = (int) (System.currentTimeMillis() - started);
+                    Map<String, Object> data = persistTurn(userId, session, trimmedQuery, reply, latencyMs);
+                    sendEvent(emitter, "done", JacksonUtil.toJson(ResponseUtil.ok(data)));
+                    emitter.complete();
+                } catch (AgentGateway.ClientDisconnectedException cde) {
+                    logger.info("导购流式聊天客户端断开，userId=" + userId);
+                    emitter.complete();
+                } catch (Exception e) {
+                    logger.error("导购流式聊天处理失败，userId=" + userId, e);
+                    sendEvent(emitter, "error",
+                            JacksonUtil.toJson(ResponseUtil.fail(802, "智能助手暂时不可用，请稍后重试")));
+                    emitter.complete();
+                } finally {
+                    agentChatGuard.release(userId);
+                }
+            });
+        } catch (RejectedExecutionException rex) {
+            agentChatGuard.release(userId);
+            sendEvent(emitter, "error", JacksonUtil.toJson(ResponseUtil.fail(802, "智能助手繁忙，请稍后重试")));
+            emitter.complete();
+        }
+        return emitter;
+    }
+
+    private static void sendEvent(SseEmitter emitter, String name, String json) {
+        try {
+            emitter.send(SseEmitter.event().name(name).data(json, MediaType.APPLICATION_JSON));
+        } catch (IOException | IllegalStateException e) {
+            // 客户端已断开或 emitter 已收尾：忽略
+        }
+    }
+
+    /** 会话解析（/chat 与 /chat/stream 共用）：越权/失效会话号一律开新会话，不报 506。 */
+    private LeomallAgentSession resolveSession(Integer userId, String requestedSessionId, String query) {
         LeomallAgentSession session = null;
-        if (!StringUtils.isEmpty(sessionId)) {
+        if (!StringUtils.isEmpty(requestedSessionId)) {
             // 会话必须属于当前登录用户，避免越权读取他人对话
-            session = sessionService.findBySessionIdAndUser(sessionId, userId);
+            session = sessionService.findBySessionIdAndUser(requestedSessionId, userId);
         }
         if (session == null) {
             // 浏览器可能残留已失效或属于其他登录账号的会话号。
             // 不沿用、也不报 506，直接为当前用户开启新会话，避免前端反复提示"无操作权限"。
-            sessionId = "lt-" + userId + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+            String sessionId = "lt-" + userId + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 16);
             session = new LeomallAgentSession();
             session.setUserId(userId);
             session.setSessionId(sessionId);
@@ -153,16 +257,13 @@ public class WxAgentController {
             session.setModel("");
             sessionService.add(session);
         }
+        return session;
+    }
 
-        long started = System.currentTimeMillis();
-        Map<String, Object> reply;
-        try {
-            reply = agentGateway.chat(sessionId, userId, query);
-        } catch (Exception e) {
-            logger.error("调用智能导购 Agent 失败", e);
-            return ResponseUtil.fail(802, "智能助手暂时不可用，请稍后重试");
-        }
-        int latencyMs = (int) (System.currentTimeMillis() - started);
+    /** 一轮对话的落库与商品卡构建（/chat 与 /chat/stream 共用），返回 data 部分。 */
+    private Map<String, Object> persistTurn(Integer userId, LeomallAgentSession session, String query,
+                                            Map<String, Object> reply, int latencyMs) {
+        String sessionId = session.getSessionId();
 
         // 用户消息
         LeomallAgentMessage userMessage = new LeomallAgentMessage();
@@ -196,6 +297,10 @@ public class WxAgentController {
         List<Map<String, Object>> cards = new ArrayList<>();
         int rank = 0;
         for (Map<String, Object> raw : rawItems) {
+            // 产品决策 2026-11-25：推荐上限 4
+            if (rank >= 4) {
+                break;
+            }
             Object idValue = raw.get("goodsId");
             Integer goodsId = idValue instanceof Number ? ((Number) idValue).intValue() : null;
             if (goodsId == null || goodsId <= 0) {
@@ -250,7 +355,7 @@ public class WxAgentController {
         data.put("model", model);
         data.put("degraded", degraded);
         data.put("addTime", formatTime(assistantMessage.getAddTime()));
-        return ResponseUtil.ok(data);
+        return data;
     }
 
     /** 当前用户的会话列表（按 userId 隔离）。 */

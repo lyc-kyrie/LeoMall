@@ -16,6 +16,64 @@ export function agentChat(data) {
   })
 }
 
+// 流式对话（2026-11-25）：SSE 逐 token 回调 onDelta(token)，resolve 完整 {errno, data}。
+// 用 fetch + ReadableStream 而非 EventSource：需要自定义认证头 X-Leomall-Token，
+// 且 EventSource 只支持 GET。协议：delta / done / error 三种事件。
+export async function agentChatStream(data, onDelta) {
+  const base = import.meta.env.VITE_BASE_API || '/leomall/wx'
+  const res = await fetch(base + '/agent/chat/stream', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Leomall-Token': window.localStorage.getItem('Authorization') || ''
+    },
+    body: JSON.stringify(data)
+  })
+  if (!res.ok || !res.body) {
+    const err = new Error('stream unavailable')
+    err.httpStatus = res.status
+    throw err
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder('utf-8')
+  let buf = ''
+  let final = null
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    let sep
+    while ((sep = buf.indexOf('\n\n')) >= 0) {
+      const block = buf.slice(0, sep)
+      buf = buf.slice(sep + 2)
+      let event = 'message'
+      let dataStr = ''
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim()
+        else if (line.startsWith('data:')) dataStr += line.slice(5).trim()
+      }
+      if (!dataStr) continue
+      const payload = JSON.parse(dataStr)
+      if (event === 'delta') {
+        if (payload.token) onDelta(payload.token)
+      } else if (event === 'done') {
+        final = payload
+      } else if (event === 'error') {
+        const err = new Error(payload.errmsg || '智能助手暂时不可用')
+        err.errno = payload.errno
+        throw err
+      }
+    }
+  }
+  if (!final) throw new Error('stream ended without result')
+  if (final.errno !== 0) {
+    const err = new Error(final.errmsg || '智能助手暂时不可用')
+    err.errno = final.errno
+    throw err
+  }
+  return final
+}
+
 // 会话列表（data 为数组）
 export function agentSessions() {
   return request({

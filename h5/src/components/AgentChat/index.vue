@@ -44,7 +44,10 @@
               <div
                 class="agent-bubble"
                 :class="msg.role === 'user' ? 'agent-bubble-user' : 'agent-bubble-assistant'"
-              >{{ msg.content }}</div>
+              >{{ msg.content }}<span
+                  v-if="msg.role === 'assistant' && sending && !msg.content"
+                  class="agent-typing"
+                >思考中…</span></div>
               <div
                 class="agent-recs"
                 v-if="msg.role === 'assistant' && msg.recommendations && msg.recommendations.length"
@@ -109,10 +112,13 @@
 
 <script>
 // 阶段2D-3：气泡规范（用户红底白字/AI 白卡）+ 推荐卡复用 goods-card + 胶囊输入 + 历史侧栏抽屉
-import { agentChat, agentSessions, agentHistory, agentClear, agentClick } from '@/api/agent'
+// 2026-11-25：流式输出（fetch SSE）+ 推荐上限 4 + 点商品自动收起面板
+import { agentChat, agentChatStream, agentSessions, agentHistory, agentClear, agentClick } from '@/api/agent'
 import GoodsCard from '@/components/goods-card'
 
 const STORAGE_KEY = 'agentSessionId'
+// 产品决策 2026-11-25：推荐商品上限 4（后端已钳制，前端兜底）
+const MAX_RECOMMENDATIONS = 4
 
 export default {
   name: 'AgentChat',
@@ -124,7 +130,9 @@ export default {
       sending: false,
       sessionId: '',
       showHist: false,
-      sessions: []
+      sessions: [],
+      // 轮次序号：新会话/切换会话时递增，让仍在跑的旧流式回调失效
+      turnSeq: 0
     }
   },
   created() {
@@ -188,6 +196,7 @@ export default {
         })
     },
     switchSession(s) {
+      this.turnSeq++
       this.sessionId = s.sessionId
       window.localStorage.setItem(STORAGE_KEY, s.sessionId)
       this.showHist = false
@@ -202,7 +211,7 @@ export default {
             id: m.id,
             role: m.role,
             content: m.content || '',
-            recommendations: m.recommendations || [],
+            recommendations: (m.recommendations || []).slice(0, MAX_RECOMMENDATIONS),
             addTime: m.addTime
           }))
           this.scrollToBottom()
@@ -220,7 +229,8 @@ export default {
     },
     errorBody(e) {
       if (!e) return {}
-      return e.data || (e.response && e.response.data) || {}
+      // 流式错误把 errno/errmsg 直接挂在 Error 上；axios 错误在 response.data
+      return e.data || (e.response && e.response.data) || (e.errno !== undefined ? e : {})
     },
     isStaleSession(e) {
       return this.errorBody(e).errno === 506
@@ -248,40 +258,77 @@ export default {
 
       this.inputText = ''
       this.messages.push({ role: 'user', content: text, recommendations: [] })
+      // 流式占位气泡：delta 逐字追加；取数组里的响应式代理而非 push 前的原始对象
+      this.messages.push({ role: 'assistant', content: '', recommendations: [] })
+      const live = this.messages[this.messages.length - 1]
+      const turn = ++this.turnSeq
       this.scrollToBottom()
       this.sending = true
+      let streamed = false
       try {
-        // 浏览器可能残留失效或属于其他账号的会话号：清掉后自动用新会话重试一次
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            const res = await agentChat({ sessionId: this.sessionId, query: text })
-            const data = (res && res.data && res.data.data) || {}
-            if (data.sessionId) {
-              this.sessionId = data.sessionId
-              window.localStorage.setItem(STORAGE_KEY, data.sessionId)
-            }
-            this.messages.push({
-              role: 'assistant',
-              content: data.reply || '抱歉，我暂时没能组织好语言，请再问我一次～',
-              recommendations: data.recommendations || []
-            })
-            break
-          } catch (e) {
-            if (attempt === 0 && this.isStaleSession(e)) {
-              window.localStorage.removeItem(STORAGE_KEY)
-              this.sessionId = ''
-              continue
-            }
+        try {
+          const res = await agentChatStream({ sessionId: this.sessionId, query: text }, token => {
+            if (turn !== this.turnSeq) return
+            streamed = true
+            live.content += token
+            this.scrollToBottom()
+          })
+          if (turn !== this.turnSeq) return
+          const data = (res && res.data) || {}
+          if (data.sessionId) {
+            this.sessionId = data.sessionId
+            window.localStorage.setItem(STORAGE_KEY, data.sessionId)
+          }
+          // 以 final 全量文本为准覆盖流式片段（上游瞬时错误重试可能产生重复 delta）
+          live.content = data.reply || live.content || '抱歉，我暂时没能组织好语言，请再问我一次～'
+          live.recommendations = (data.recommendations || []).slice(0, MAX_RECOMMENDATIONS)
+        } catch (e) {
+          if (turn !== this.turnSeq) return
+          if (streamed) {
+            // 已有部分流式文本：保留已输出内容，追加错误提示
             this.pushSystem(this.errorMessage(e))
+          } else {
+            // 流式通道不可用（后端未升级/网络不支持）：移除占位气泡，回退旧同步接口
+            this.messages.pop()
+            await this.sendLegacy(text)
           }
         }
       } finally {
-        this.sending = false
+        if (turn === this.turnSeq) {
+          this.sending = false
+        }
         this.scrollToBottom()
+      }
+    },
+    // 旧同步接口兜底（流式不可用时）：保留失效会话自动换新重试
+    async sendLegacy(text) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const res = await agentChat({ sessionId: this.sessionId, query: text })
+          const data = (res && res.data && res.data.data) || {}
+          if (data.sessionId) {
+            this.sessionId = data.sessionId
+            window.localStorage.setItem(STORAGE_KEY, data.sessionId)
+          }
+          this.messages.push({
+            role: 'assistant',
+            content: data.reply || '抱歉，我暂时没能组织好语言，请再问我一次～',
+            recommendations: (data.recommendations || []).slice(0, MAX_RECOMMENDATIONS)
+          })
+          break
+        } catch (e) {
+          if (attempt === 0 && this.isStaleSession(e)) {
+            window.localStorage.removeItem(STORAGE_KEY)
+            this.sessionId = ''
+            continue
+          }
+          this.pushSystem(this.errorMessage(e))
+        }
       }
     },
     async newSession() {
       const oldSid = this.sessionId
+      this.turnSeq++
       window.localStorage.removeItem(STORAGE_KEY)
       this.sessionId = ''
       this.messages = []
@@ -306,6 +353,10 @@ export default {
           // 上报失败忽略
         }
       }
+      // 2026-11-25：先收起对话面板（含历史侧栏）再跳转，
+      // 否则 fixed 全屏面板（z-index 2200）会盖住商品详情页
+      this.showHist = false
+      this.closePanel()
       this.$router.push({ name: 'detail', params: { itemId: String(goods.goodsId) } })
     }
   },
@@ -490,6 +541,14 @@ $agent-color-deep: var(--brand-deep);
   color: var(--text-1);
   border-bottom-left-radius: 4px;
   box-shadow: var(--shadow-1);
+}
+.agent-typing {
+  color: var(--text-3);
+  animation: agent-typing-blink 1.2s ease-in-out infinite;
+}
+@keyframes agent-typing-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 /* 推荐卡复用共用 goods-card：双列网格 */

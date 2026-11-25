@@ -3,6 +3,7 @@
 
 路由：
     POST /commerce/intents                 提交买家意图（同步返回最终回复；启用队列时内部入队后等结果）
+    POST /commerce/intents/stream          提交买家意图（SSE 流式：delta 逐 token + final 全量结果）
     POST /commerce/intents/async           提交买家意图（立即返回 task_id，结果走 WS 或轮询）
     GET  /commerce/tasks/{task_id}         查任务状态（queued / running / done / failed）
     WS   /commerce/events                  订阅会话事件流
@@ -22,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import hashlib
+import json
 import logging
 import re
 import time
@@ -31,6 +33,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 
 from app.application.agents.orchestrator import SubmitIntentInput
@@ -142,8 +145,12 @@ def _expand_query(raw_query: str) -> str:
     return " ".join([cleaned.strip(), *extras]).strip() or raw_query
 
 
-def _to_recommendations(hits: list[dict]) -> list[RecommendationItem]:
-    """把 tool.result 里的商品卡收敛成去重、按分数排序的推荐列表。"""
+def _to_recommendations(hits: list[dict], limit: int = 4) -> list[RecommendationItem]:
+    """把 tool.result 里的商品卡收敛成去重、按分数排序的推荐列表。
+
+    上限 4（产品决策 2026-11-25）：多次检索的 hits 会合并，
+    不截断会把探索性检索的无关候选也推给买家。
+    """
     best: dict[int, dict] = {}
     for hit in hits:
         try:
@@ -166,7 +173,7 @@ def _to_recommendations(hits: list[dict]) -> list[RecommendationItem]:
             counter_price=float(h.get("counter_price") or 0),
             category_name=str(h.get("category_name") or ""),
         )
-        for index, h in enumerate(ordered)
+        for index, h in enumerate(ordered[:limit])
     ]
 
 
@@ -201,7 +208,7 @@ async def _local_recommend(c: Container, raw_query: str) -> tuple[str, list[dict
     budget = _parse_budget(raw_query)
     spec = ProductSearchSpec(
         normalized_query=_expand_query(raw_query),
-        top_k=5,
+        top_k=4,
         price_max_major=budget,
     )
     result = await c.catalog_search.execute(spec)
@@ -412,6 +419,104 @@ def build_app() -> FastAPI:
             shopping_session_id=session_id,
             final_text=final_text,
             model=c.settings.llm_model,
+        )
+
+    @api.post("/commerce/intents/stream", dependencies=[Depends(require_internal_token)])
+    async def submit_intent_stream(body: SubmitIntentRequest):
+        """SSE 流式意图处理（2026-11-25）：delta 逐 token 推送，final 一次性给全量结果。
+
+        事件协议（BFF 原样透传 delta / final）：
+            event: delta  data: {"token": "..."}
+            event: final  data: SubmitIntentResponse 全量 JSON（含 recommendations）
+            event: error  data: {"message": "..."}
+
+        幂等说明：流式路径不做同步幂等缓存（重放流复杂度高），
+        滥用防护由 BFF 的每用户限流/配额/并发守卫承担。
+        """
+        c = container()
+        session_id = body.shopping_session_id or f"session-{uuid.uuid4().hex[:8]}"
+
+        def sse(event: str, data: dict) -> str:
+            return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+        async def event_stream():
+            if c.task_queue is not None:
+                # 队列启用：与同步端点同一条入队-等待路径（含幂等），一次性 final，无 token 流
+                resp = await submit_intent(body)
+                yield sse("final", resp.model_dump())
+                return
+            if c.settings.local_fallback:
+                final_text, hits, strategy = await _local_recommend(c, body.raw_query)
+                resp = SubmitIntentResponse(
+                    shopping_session_id=session_id,
+                    final_text=final_text,
+                    recommendations=_to_recommendations(hits),
+                    model="local-fallback",
+                    degraded=True,
+                    recall_strategy=strategy,
+                )
+                yield sse("final", resp.model_dump())
+                return
+
+            intent = SubmitIntentInput(
+                shopping_session_id=session_id,
+                buyer_id=body.buyer_id,
+                locale=body.locale,
+                currency=body.currency,
+                raw_query=body.raw_query,
+            )
+            queue = c.bus.subscribe(session_id)
+            task = asyncio.create_task(c.orchestrator.handle_intent(intent))
+            hits: list[dict] = []
+
+            def drain_event(event) -> Optional[str]:
+                etype = getattr(event, "type", "")
+                payload = event.payload if hasattr(event, "payload") else None
+                if etype == "token.delta" and isinstance(payload, dict):
+                    return sse("delta", {"token": str(payload.get("token") or "")})
+                if (
+                    etype == "tool.result"
+                    and isinstance(payload, dict)
+                    and payload.get("tool") == "product_search_tool"
+                    and isinstance(payload.get("hits"), list)
+                ):
+                    hits.extend(payload["hits"])
+                return None
+
+            try:
+                while not task.done():
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=0.25)
+                    except asyncio.TimeoutError:
+                        continue
+                    out = drain_event(event)
+                    if out:
+                        yield out
+                while not queue.empty():
+                    out = drain_event(queue.get_nowait())
+                    if out:
+                        yield out
+                result = await task
+                resp = SubmitIntentResponse(
+                    shopping_session_id=session_id,
+                    final_text=result.final_text,
+                    recommendations=_to_recommendations(hits),
+                    model=c.settings.llm_model,
+                    degraded=False,
+                )
+                yield sse("final", resp.model_dump())
+            except Exception as err:  # noqa: BLE001 —— 流内异常转 error 事件，连接正常收尾
+                logger.exception("流式意图处理失败")
+                yield sse("error", {"message": str(err)})
+            finally:
+                c.bus.unsubscribe(session_id, queue)
+                if not task.done():
+                    task.cancel()
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     @api.post("/commerce/intents/async", dependencies=[Depends(require_internal_token)])

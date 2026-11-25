@@ -13,7 +13,8 @@ leomall:
     connect-timeout-ms: ${LEOMALL_AGENT_CONNECT_TIMEOUT_MS:3000}
     # 阶段2C：60s → 45s（审计 P1-8「更短超时」），可环境变量覆盖
     read-timeout-ms: ${LEOMALL_AGENT_READ_TIMEOUT_MS:45000}
-    top-k: 5
+    # 产品决策 2026-11-25：推荐上限 4（Python 工具/合并层与 Java 卡片层同步钳制）
+    top-k: 4
     # 阶段2C：chat 异步化——独立有界线程池承载阻塞调用，Tomcat 线程即时释放。
     # threads=并发执行上限；queue-capacity=排队上限，超出立即 802 快速失败；
     # async-timeout-ms=Servlet 异步超时（须 > connect+read+落库耗时）。

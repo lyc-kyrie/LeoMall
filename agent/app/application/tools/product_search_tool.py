@@ -24,7 +24,7 @@ def build_product_search_tool(usecase: CatalogSearchUseCase, bus: TradeEventBus)
         normalized_query: str,
         category: Optional[str] = None,
         category_id: Optional[int] = None,
-        top_k: int | str = 5,
+        top_k: int | str = 4,
         price_max_major: float | str | None = None,
         price_min_major: float | str | None = None,
         is_new: bool = False,
@@ -43,7 +43,7 @@ def build_product_search_tool(usecase: CatalogSearchUseCase, bus: TradeEventBus)
             category_id (`int | None`):
                 leomall 类目 ID，可选；传入后作为硬约束，只返回该类目商品。
             top_k (`int`):
-                返回候选数量，默认 5。
+                返回候选数量，默认 4，上限 4（超出会被截断）。
             price_max_major (`float | None`):
                 价格上限（人民币元）。买家有预算硬约束时必传，由检索链路结构化过滤。
             price_min_major (`float | None`):
@@ -62,6 +62,8 @@ def build_product_search_tool(usecase: CatalogSearchUseCase, bus: TradeEventBus)
                     content=[TextBlock(type="text", text=f"[error] top_k 非法：{top_k}")],
                     state=ToolResultState.ERROR,
                 )
+        # 产品决策 2026-11-25：推荐上限 4，模型传更大值也截断
+        top_k = max(1, min(int(top_k), 4))
         if isinstance(price_max_major, str):
             try:
                 price_max_major = float(price_max_major)
