@@ -1,0 +1,63 @@
+/* 阶段2D-5：列表页通用规范（全局样式层，一次覆盖全部列表页，不改各页业务逻辑）
+   筛选白色圆角卡 / 表格容器圆角+表头 --bg / 空态 / 分页右对齐 */
+
+.app-main {
+  background: var(--bg, #f7f8fa);
+}
+
+.app-container {
+  padding: 16px;
+
+  /* 筛选区：白色圆角卡 */
+  .filter-container {
+    background: var(--card, #fff);
+    border-radius: 12px;
+    padding: 16px 16px 6px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(31, 35, 41, 0.04);
+
+    .filter-item {
+      margin-bottom: 10px;
+    }
+  }
+
+  /* 表格容器：圆角 12 + 静置阴影；表头 --bg（斑马纹由 stripe prop 提供） */
+  > .el-table {
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(31, 35, 41, 0.04);
+
+    th.el-table__cell {
+      background: var(--bg, #f7f8fa);
+      color: var(--text-2, #4e5969);
+      font-weight: 600;
+    }
+
+    /* 空态：插画位 + 辅助色文案 */
+    .el-table__empty-block {
+      min-height: 180px;
+
+      .el-table__empty-text {
+        color: var(--text-3, #86909c);
+        line-height: 1.6;
+
+        &::before {
+          content: '';
+          display: block;
+          width: 64px;
+          height: 64px;
+          margin: 0 auto 8px;
+          background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Crect x='10' y='18' width='44' height='32' rx='6' fill='%23ECEEF1'/%3E%3Cpath d='M10 30h14l4 6h8l4-6h14' stroke='%23C9CDD4' stroke-width='2.5' fill='none'/%3E%3Ccircle cx='32' cy='12' r='3' fill='%23C9CDD4'/%3E%3C/svg%3E") no-repeat center / contain;
+        }
+      }
+    }
+  }
+
+  /* 分页：右对齐、透明底（div 提权压过组件 scoped 同特异性规则） */
+  div.pagination-container {
+    display: flex;
+    justify-content: flex-end;
+    background: transparent;
+    padding: 14px 4px 0;
+  }
+}

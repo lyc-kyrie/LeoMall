@@ -5,12 +5,12 @@
     <div class="filter-container">
       <el-input v-model="listQuery.userId" clearable class="filter-item" style="width: 200px;" :placeholder="$t('user_history.placeholder.filter_user_id')"/>
       <el-input v-model="listQuery.keyword" clearable class="filter-item" style="width: 200px;" :placeholder="$t('user_history.placeholder.filter_keyword')"/>
-      <el-button class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
-      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
+      <el-button class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="Download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row>
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row>
       <el-table-column align="center" width="100px" :label="$t('user_history.table.id')" prop="id" sortable />
 
       <el-table-column align="center" min-width="100px" :label="$t('user_history.table.user_id')" prop="userId" />
@@ -20,7 +20,7 @@
       <el-table-column align="center" min-width="100px" :label="$t('user_history.table.add_time')" prop="addTime" />
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
   </div>
 </template>

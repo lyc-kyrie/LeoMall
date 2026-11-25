@@ -1,8 +1,8 @@
-import Vue from 'vue'
+import { ElMessage } from 'element-plus'
 import Clipboard from 'clipboard'
 
 function clipboardSuccess() {
-  Vue.prototype.$message({
+  ElMessage({
     message: '拷贝成功',
     type: 'success',
     duration: 1500
@@ -10,7 +10,7 @@ function clipboardSuccess() {
 }
 
 function clipboardError() {
-  Vue.prototype.$message({
+  ElMessage({
     message: '拷贝失败',
     type: 'error'
   })

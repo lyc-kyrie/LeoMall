@@ -4,20 +4,20 @@
     <!-- 查询和其他操作 -->
     <div class="filter-container">
       <el-input v-model="listQuery.goodsId" clearable class="filter-item" style="width: 200px;" :placeholder="$t('promotion_groupon_rule.placeholder.filter_goods_id')" />
-      <el-button v-permission="['GET /leomall/admin/groupon/list']" class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
-      <el-button v-permission="['POST /leomall/admin/groupon/create']" class="filter-item" type="primary" icon="el-icon-edit" @click="handleCreate">{{ $t('app.button.create') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/groupon/list']" class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button v-permission="['POST /leomall/admin/groupon/create']" class="filter-item" type="primary" icon="Edit" @click="handleCreate">{{ $t('app.button.create') }}</el-button>
       <el-button
         :loading="downloadLoading"
         class="filter-item"
         type="primary"
-        icon="el-icon-download"
+        icon="Download"
         @click="handleDownload"
       >{{ $t('app.button.download') }}
       </el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row>
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row>
       <el-table-column align="center" :label="$t('promotion_groupon_rule.table.id')" prop="id" />
 
       <el-table-column align="center" :label="$t('promotion_groupon_rule.table.goods_id')" prop="goodsId" />
@@ -25,7 +25,7 @@
       <el-table-column align="center" min-width="100" :label="$t('promotion_groupon_rule.table.goods_name')" prop="goodsName" />
 
       <el-table-column align="center" property="picUrl" :label="$t('promotion_groupon_rule.table.pic_url')">
-        <template slot-scope="scope">
+        <template #default="scope">
           <img :src="scope.row.picUrl" width="40">
         </template>
       </el-table-column>
@@ -35,7 +35,7 @@
       <el-table-column align="center" :label="$t('promotion_groupon_rule.table.discount_member')" prop="discountMember" />
 
       <el-table-column align="center" :label="$t('promotion_groupon_rule.table.status')" prop="status">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag :type="scope.row.status === 0 ? 'success' : 'error' ">{{ statusMap[scope.row.status] }}</el-tag>
         </template>
       </el-table-column>
@@ -43,15 +43,15 @@
       <el-table-column align="center" :label="$t('promotion_groupon_rule.table.expire_time')" prop="expireTime" />
 
       <el-table-column align="center" :label="$t('promotion_groupon_rule.table.actions')" width="200" class-name="small-padding fixed-width">
-        <template slot-scope="scope">
-          <el-button v-permission="['POST /leomall/admin/groupon/update']" type="primary" size="mini" @click="handleUpdate(scope.row)">{{ $t('app.button.edit') }}</el-button>
-          <el-button v-permission="['POST /leomall/admin/groupon/delete']" type="danger" size="mini" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
+        <template #default="scope">
+          <el-button v-permission="['POST /leomall/admin/groupon/update']" type="primary" size="small" @click="handleUpdate(scope.row)">{{ $t('app.button.edit') }}</el-button>
+          <el-button v-permission="['POST /leomall/admin/groupon/delete']" type="danger" size="small" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 添加或修改对话框 -->
-    <el-dialog :title="textMap[dialogStatus]" :visible.sync="dialogFormVisible">
+    <el-dialog :title="textMap[dialogStatus]" v-model="dialogFormVisible">
       <el-form
         ref="dataForm"
         :rules="rules"
@@ -79,14 +79,14 @@
           />
         </el-form-item>
       </el-form>
-      <div slot="footer" class="dialog-footer">
+      <template #footer><div class="dialog-footer">
         <el-button @click="dialogFormVisible = false">{{ $t('app.button.cancel') }}</el-button>
         <el-button v-if="dialogStatus=='create'" type="primary" @click="createData">{{ $t('app.button.confirm') }}</el-button>
         <el-button v-else type="primary" @click="updateData">{{ $t('app.button.confirm') }}</el-button>
-      </div>
+      </div></template>
     </el-dialog>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
     <el-tooltip placement="top" :content="$t('app.tooltip.back_to_top')">
       <back-to-top :visibility-height="100" />

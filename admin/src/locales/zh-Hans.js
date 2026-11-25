@@ -1,5 +1,5 @@
-// https://element.eleme.cn/#/en-US/component/i18n
-import el from 'element-ui/lib/locale/lang/zh-CN'
+// 阶段2D-4a：element-ui locale → element-plus locale（EP 组件文案另由 el-config-provider 接管）
+import el from 'element-plus/es/locale/lang/zh-cn'
 
 export default {
   ...el,

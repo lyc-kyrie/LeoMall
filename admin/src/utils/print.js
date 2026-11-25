@@ -128,8 +128,8 @@ Print.prototype = {
     }
 };
 const MyPlugin = {}
-MyPlugin.install = function (Vue, options) {
-  // 4. 添加实例方法
-  Vue.prototype.$print = Print
+MyPlugin.install = function (app) {
+  // 阶段2D-4a：Vue3 全局属性
+  app.config.globalProperties.$print = Print
 }
 export default MyPlugin

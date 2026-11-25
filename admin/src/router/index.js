@@ -1,7 +1,4 @@
-import Vue from 'vue'
-import Router from 'vue-router'
-
-Vue.use(Router)
+import { createRouter, createWebHashHistory } from 'vue-router'
 
 /* Layout */
 import Layout from '@/views/layout/Layout'
@@ -542,7 +539,9 @@ export const asyncRoutes = [
     ]
   },
   {
-    path: 'external-link',
+    // 阶段2D-4a：vue-router4 顶级 path 必须以 / 开头；子路由 URL 含 ':' 会被当参数解析抛错，
+    // 外链改存 meta.link，由 SidebarItem 渲染 <a>（路由表本身不再注册 URL path）
+    path: '/external-link',
     component: Layout,
     redirect: 'noredirect',
     alwaysShow: true,
@@ -553,32 +552,32 @@ export const asyncRoutes = [
     },
     children: [
       {
-        path: 'https://cloud.tencent.com/product/cos',
-        meta: { title: 'app.menu.external_link_tencent_cos', icon: 'link' }
+        path: 'tencent-cos',
+        meta: { title: 'app.menu.external_link_tencent_cos', icon: 'link', link: 'https://cloud.tencent.com/product/cos' }
       },
       {
-        path: 'https://cloud.tencent.com/product/sms',
-        meta: { title: 'app.menu.external_link_tencent_sms', icon: 'link' }
+        path: 'tencent-sms',
+        meta: { title: 'app.menu.external_link_tencent_sms', icon: 'link', link: 'https://cloud.tencent.com/product/sms' }
       },
       {
-        path: 'https://pay.weixin.qq.com/index.php/core/home/login',
-        meta: { title: 'app.menu.external_link_weixin_pay', icon: 'link' }
+        path: 'weixin-pay',
+        meta: { title: 'app.menu.external_link_weixin_pay', icon: 'link', link: 'https://pay.weixin.qq.com/index.php/core/home/login' }
       },
       {
-        path: 'https://mpkf.weixin.qq.com/',
-        meta: { title: 'app.menu.external_link_weixin_mpkf', icon: 'link' }
+        path: 'weixin-mpkf',
+        meta: { title: 'app.menu.external_link_weixin_mpkf', icon: 'link', link: 'https://mpkf.weixin.qq.com/' }
       },
       {
-        path: 'https://www.alibabacloud.com/zh/product/oss',
-        meta: { title: 'app.menu.external_link_alibaba_oss', icon: 'link' }
+        path: 'alibaba-oss',
+        meta: { title: 'app.menu.external_link_alibaba_oss', icon: 'link', link: 'https://www.alibabacloud.com/zh/product/oss' }
       },
       {
-        path: 'https://www.qiniu.com/products/kodo',
-        meta: { title: 'app.menu.external_link_qiniu_kodo', icon: 'link' }
+        path: 'qiniu-kodo',
+        meta: { title: 'app.menu.external_link_qiniu_kodo', icon: 'link', link: 'https://www.qiniu.com/products/kodo' }
       },
       {
-        path: 'http://www.kdniao.com/api-track',
-        meta: { title: 'app.menu.external_link_kdniao_api', icon: 'link' }
+        path: 'kdniao-api',
+        meta: { title: 'app.menu.external_link_kdniao_api', icon: 'link', link: 'http://www.kdniao.com/api-track' }
       }
     ]
   },
@@ -587,6 +586,7 @@ export const asyncRoutes = [
     component: Layout,
     redirect: 'noredirect',
     alwaysShow: true,
+    name: 'profileManage',
     children: [
       {
         path: 'password',
@@ -638,21 +638,25 @@ export const asyncRoutes = [
     ]
   },
 
-  { path: '*', redirect: '/404', hidden: true }
+  { path: '/:pathMatch(.*)*', redirect: '/404', hidden: true }
 ]
 
-const createRouter = () => new Router({
-  // mode: 'history', // require service support
-  scrollBehavior: () => ({ y: 0 }),
+const newInstance = () => createRouter({
+  history: createWebHashHistory(),
+  scrollBehavior: () => ({ top: 0 }),
   routes: constantRoutes
 })
 
-const router = createRouter()
+const router = newInstance()
 
-// Detail see: https://github.com/vuejs/vue-router/issues/1234#issuecomment-357941465
+// 阶段2D-4a：vue-router4 无 matcher 替换 hack，改为按名移除动态路由
+const constantNames = new Set(
+  constantRoutes.flatMap(r => [r.name, ...(r.children || []).map(c => c.name)]).filter(Boolean)
+)
 export function resetRouter() {
-  const newRouter = createRouter()
-  router.matcher = newRouter.matcher // reset router
+  router.getRoutes().forEach(r => {
+    if (r.name && !constantNames.has(r.name)) router.removeRoute(r.name)
+  })
 }
 
 export default router

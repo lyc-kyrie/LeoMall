@@ -4,23 +4,23 @@
     <!-- 查询和其他操作 -->
     <div class="filter-container">
       <el-input v-model="listQuery.grouponRuleId" clearable class="filter-item" style="width: 200px;" :placeholder="$t('promotion_groupon_activity.placeholder.filter_groupon_rule_id')" />
-      <el-button v-permission="['GET /leomall/admin/groupon/listRecord']" class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/groupon/listRecord']" class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
       <el-button
         :loading="downloadLoading"
         class="filter-item"
         type="primary"
-        icon="el-icon-download"
+        icon="Download"
         @click="handleDownload"
       >{{ $t('app.button.download') }}
       </el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row>
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row>
 
       <el-table-column type="expand">
-        <template slot-scope="scope">
-          <el-table :data="scope.row.subGroupons" border style="width: 100%">
+        <template #default="scope">
+          <el-table stripe :data="scope.row.subGroupons" style="width: 100%">
             <el-table-column align="center" :label="$t('promotion_groupon_activity.table.order_id')" prop="orderId" />
             <el-table-column align="center" :label="$t('promotion_groupon_activity.table.user_id')" prop="userId" />
           </el-table>
@@ -38,7 +38,7 @@
       <el-table-column align="center" :label="$t('promotion_groupon_activity.table.rules_discount_member')" prop="rules.discountMember" />
 
       <el-table-column align="center" property="iconUrl" :label="$t('promotion_groupon_activity.table.groupon_share_url')">
-        <template slot-scope="scope">
+        <template #default="scope">
           <img :src="scope.row.groupon.shareUrl" width="40">
         </template>
       </el-table-column>
@@ -48,7 +48,7 @@
       <el-table-column align="center" :label="$t('promotion_groupon_activity.table.rules_expire_time')" prop="rules.expireTime" />
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
     <el-tooltip placement="top" :content="$t('app.tooltip.back_to_top')">
       <back-to-top :visibility-height="100" />

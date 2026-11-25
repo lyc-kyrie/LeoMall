@@ -1,6 +1,6 @@
 import router from './router'
 import store from './store'
-import { Message } from 'element-ui'
+import { ElMessage as Message } from 'element-plus'
 import NProgress from 'nprogress' // progress bar
 import 'nprogress/nprogress.css'// progress bar style
 import { getToken } from '@/utils/auth' // getToken from cookie
@@ -30,7 +30,7 @@ router.beforeEach((to, from, next) => {
         store.dispatch('GetUserInfo').then(res => { // 拉取user_info
           const perms = res.data.data.perms // note: perms must be a array! such as: ['GET /aaa','POST /bbb']
           store.dispatch('GenerateRoutes', { perms }).then(() => { // 根据perms权限生成可访问的路由表
-            router.addRoutes(store.getters.addRoutes) // 动态添加可访问路由表
+            store.getters.addRoutes.forEach(r => router.addRoute(r)) // 动态添加可访问路由表
             if (mustChangePassword && to.path !== '/profile/password') {
               next({ path: '/profile/password', replace: true })
             } else {

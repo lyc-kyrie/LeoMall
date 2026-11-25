@@ -2,7 +2,7 @@
 import store from '@/store'
 
 export default{
-  inserted(el, binding, vnode) {
+  mounted(el, binding, vnode) {
     const { value } = binding
     const perms = store.getters && store.getters.perms
 

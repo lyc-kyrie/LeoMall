@@ -1,5 +1,5 @@
 <template>
-  <el-scrollbar ref="scrollContainer" :vertical="false" class="scroll-container" @wheel.native.prevent="handleScroll">
+  <el-scrollbar ref="scrollContainer" :vertical="false" class="scroll-container" @wheel.prevent="handleScroll">
     <slot />
   </el-scrollbar>
 </template>
@@ -17,13 +17,13 @@ export default {
   methods: {
     handleScroll(e) {
       const eventDelta = e.wheelDelta || -e.deltaY * 40
-      const $scrollWrapper = this.$refs.scrollContainer.$refs.wrap
+      const $scrollWrapper = this.$refs.scrollContainer.wrapRef
       $scrollWrapper.scrollLeft = $scrollWrapper.scrollLeft + eventDelta / 4
     },
     moveToTarget(currentTag) {
       const $container = this.$refs.scrollContainer.$el
       const $containerWidth = $container.offsetWidth
-      const $scrollWrapper = this.$refs.scrollContainer.$refs.wrap
+      const $scrollWrapper = this.$refs.scrollContainer.wrapRef
       const tagList = this.$parent.$refs.tag
 
       let firstTag = null
@@ -80,13 +80,11 @@ export default {
   position: relative;
   overflow: hidden;
   width: 100%;
-  ::v-deep {
-    .el-scrollbar__bar {
-      bottom: 0px;
-    }
-    .el-scrollbar__wrap {
-      height: 49px;
-    }
+  :deep(.el-scrollbar__bar) {
+    bottom: 0px;
+  }
+  :deep(.el-scrollbar__wrap) {
+    height: 49px;
   }
 }
 </style>

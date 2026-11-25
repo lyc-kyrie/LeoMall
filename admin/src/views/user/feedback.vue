@@ -5,12 +5,12 @@
     <div class="filter-container">
       <el-input v-model="listQuery.username" clearable class="filter-item" style="width: 200px;" :placeholder="$t('user_feedback.placeholder.filter_username')"/>
       <el-input v-model="listQuery.id" clearable class="filter-item" style="width: 200px;" :placeholder="$t('user_feedback.placeholder.filter_id')"/>
-      <el-button class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
-      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
+      <el-button class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="Download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row>
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row>
 
       <el-table-column align="center" :label="$t('user_feedback.table.id')" prop="id" />
 
@@ -23,7 +23,7 @@
       <el-table-column align="center" :label="$t('user_feedback.table.content')" prop="content" />
 
       <el-table-column align="center" :label="$t('user_feedback.table.pic_urls')" prop="picUrls">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-image v-for="item in scope.row.picUrls" :key="item" :src="item" :preview-src-list="scope.row.picUrls" :lazy="true" style="width: 40px; height: 40px; margin-right: 5px;"/>
         </template>
       </el-table-column>
@@ -32,7 +32,7 @@
 
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
   </div>
 </template>

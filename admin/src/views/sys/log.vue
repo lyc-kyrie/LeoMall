@@ -4,22 +4,22 @@
     <!-- 查询和其他操作 -->
     <div class="filter-container">
       <el-input v-model="listQuery.name" clearable class="filter-item" style="width: 200px;" :placeholder="$t('sys_log.placeholder.filter_name')"/>
-      <el-button v-permission="['GET /leomall/admin/log/list']" class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/log/list']" class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row>
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row>
       <el-table-column align="center" :label="$t('sys_log.table.admin')" prop="admin" />
       <el-table-column align="center" :label="$t('sys_log.table.ip')" prop="ip" />
       <el-table-column align="center" :label="$t('sys_log.table.add_time')" prop="addTime" />
       <el-table-column align="center" :label="$t('sys_log.table.type')" prop="type">
-        <template slot-scope="scope">
-          <el-tag>{{ scope.row.type | typeFilter }}</el-tag>
+        <template #default="scope">
+          <el-tag>{{ typeFilter(scope.row.type) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column align="center" :label="$t('sys_log.table.action')" prop="action" />
       <el-table-column align="center" :label="$t('sys_log.table.status')" prop="status">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag :type="scope.row.status ? 'success' : 'error' ">{{ $t(scope.row.status ? 'sys_log.value.status_success' : 'sys_log.value.status_error') }}</el-tag>
         </template>
       </el-table-column>
@@ -28,7 +28,7 @@
 
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
   </div>
 </template>

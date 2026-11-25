@@ -3,24 +3,24 @@
 
     <!-- 查询和其他操作 -->
     <div class="filter-container">
-      <el-button v-permission="['POST /leomall/admin/category/create']" class="filter-item" type="primary" icon="el-icon-edit" @click="handleCreate">{{ $t('app.button.create') }}</el-button>
+      <el-button v-permission="['POST /leomall/admin/category/create']" class="filter-item" type="primary" icon="Edit" @click="handleCreate">{{ $t('app.button.create') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row row-key="id">
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row row-key="id">
 
       <el-table-column align="center" :label="$t('mall_category.table.id')" prop="id" />
 
       <el-table-column align="center" :label="$t('mall_category.table.name')" prop="name" />
 
       <el-table-column align="center" property="iconUrl" :label="$t('mall_category.table.icon_url')">
-        <template slot-scope="scope">
+        <template #default="scope">
           <img v-if="scope.row.iconUrl" :src="scope.row.iconUrl" width="40">
         </template>
       </el-table-column>
 
       <el-table-column align="center" property="picUrl" :label="$t('mall_category.table.pic_url')">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-image :src="thumbnail(scope.row.picUrl)" :preview-src-list="toPreview(scope.row, scope.row.picUrl)" style="width: 80px; height: 40px" />
         </template>
       </el-table-column>
@@ -30,21 +30,21 @@
       <el-table-column align="center" min-width="100" :label="$t('mall_category.table.desc')" prop="desc" />
 
       <el-table-column align="center" :label="$t('mall_category.table.level')" prop="level">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag :type="scope.row.level === 'L1' ? 'primary' : 'info' ">{{ $t(scope.row.level === 'L1' ? 'mall_category.value.level_L1' : 'mall_category.value.level_L2') }}</el-tag>
         </template>
       </el-table-column>
 
       <el-table-column align="center" :label="$t('mall_category.table.actions')" width="200" class-name="small-padding fixed-width">
-        <template slot-scope="scope">
-          <el-button v-permission="['POST /leomall/admin/category/update']" type="primary" size="mini" @click="handleUpdate(scope.row)">{{ $t('app.button.edit') }}</el-button>
-          <el-button v-permission="['POST /leomall/admin/category/delete']" type="danger" size="mini" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
+        <template #default="scope">
+          <el-button v-permission="['POST /leomall/admin/category/update']" type="primary" size="small" @click="handleUpdate(scope.row)">{{ $t('app.button.edit') }}</el-button>
+          <el-button v-permission="['POST /leomall/admin/category/delete']" type="danger" size="small" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 添加或修改对话框 -->
-    <el-dialog :title="textMap[dialogStatus]" :visible.sync="dialogFormVisible">
+    <el-dialog :title="textMap[dialogStatus]" v-model="dialogFormVisible">
       <el-form ref="dataForm" :rules="rules" :model="dataForm" status-icon label-position="left" label-width="100px" style="width: 400px; margin-left:50px;">
         <el-form-item :label="$t('mall_category.form.name')" prop="name">
           <el-input v-model="dataForm.name"/>
@@ -72,7 +72,7 @@
             class="avatar-uploader"
             accept=".jpg,.jpeg,.png,.gif">
             <img v-if="dataForm.iconUrl" :src="dataForm.iconUrl" class="avatar">
-            <i v-else class="el-icon-plus avatar-uploader-icon"/>
+            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
           </el-upload>
         </el-form-item>
         <el-form-item :label="$t('mall_category.form.pic_url')" prop="picUrl">
@@ -84,18 +84,18 @@
             class="avatar-uploader"
             accept=".jpg,.jpeg,.png,.gif">
             <img v-if="dataForm.picUrl" :src="dataForm.picUrl" class="avatar">
-            <i v-else class="el-icon-plus avatar-uploader-icon"/>
+            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
           </el-upload>
         </el-form-item>
         <el-form-item :label="$t('mall_category.form.desc')" prop="desc">
           <el-input v-model="dataForm.desc"/>
         </el-form-item>
       </el-form>
-      <div slot="footer" class="dialog-footer">
+      <template #footer><div class="dialog-footer">
         <el-button @click="dialogFormVisible = false">{{ $t('app.button.cancel') }}</el-button>
         <el-button v-if="dialogStatus=='create'" type="primary" @click="createData">{{ $t('app.button.confirm') }}</el-button>
         <el-button v-else type="primary" @click="updateData">{{ $t('app.button.confirm') }}</el-button>
-      </div>
+      </div></template>
     </el-dialog>
 
   </div>

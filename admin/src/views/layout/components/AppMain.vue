@@ -1,10 +1,12 @@
 <template>
   <section class="app-main">
-    <transition name="fade-transform" mode="out-in">
-      <keep-alive :include="cachedViews">
-        <router-view :key="key" />
-      </keep-alive>
-    </transition>
+    <router-view v-slot="{ Component }">
+      <transition name="fade-transform" mode="out-in">
+        <keep-alive :include="cachedViews">
+          <component :is="Component" :key="key" />
+        </keep-alive>
+      </transition>
+    </router-view>
   </section>
 </template>
 
@@ -28,7 +30,9 @@ export default {
   min-height: calc(100vh - 50px);
   width: 100%;
   position: relative;
-  overflow: hidden;
+  /* 阶段2D-5：clip 替代 hidden——同样裁剪过渡溢出，但不产生滚动容器，
+     否则表单页 sticky 底部操作条失效 */
+  overflow: clip;
 }
 .fixed-header+.app-main {
   padding-top: 50px;

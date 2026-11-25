@@ -1,14 +1,14 @@
 <template>
   <div v-if="!item.hidden" class="menu-wrapper">
     <template v-if="hasOneShowingChild(item.children,item) && (!onlyOneChild.children||onlyOneChild.noShowingChildren)&&!item.alwaysShow">
-      <app-link v-if="onlyOneChild.meta" :to="resolvePath(onlyOneChild.path)">
-        <el-menu-item :index="resolvePath(onlyOneChild.path)" :class="{'submenu-title-noDropdown':!isNest}">
+      <app-link v-if="onlyOneChild.meta" :to="resolvePath(linkOf(onlyOneChild))">
+        <el-menu-item :index="resolvePath(linkOf(onlyOneChild))" :class="{'submenu-title-noDropdown':!isNest}">
           <item :icon="onlyOneChild.meta.icon||(item.meta&&item.meta.icon)" :title="$t(onlyOneChild.meta.title)" />
         </el-menu-item>
       </app-link>
     </template>
-    <el-submenu v-else ref="subMenu" :index="resolvePath(item.path)" popper-append-to-body>
-      <template slot="title">
+    <el-sub-menu v-else ref="subMenu" :index="resolvePath(item.path)" popper-append-to-body>
+      <template #title>
         <item v-if="item.meta" :icon="item.meta && item.meta.icon" :title="$t(item.meta.title)" />
       </template>
       <sidebar-item
@@ -16,15 +16,15 @@
         :key="child.path"
         :is-nest="true"
         :item="child"
-        :base-path="resolvePath(child.path)"
+        :base-path="resolvePath(linkOf(child))"
         class="nest-menu"
       />
-    </el-submenu>
+    </el-sub-menu>
   </div>
 </template>
 
 <script>
-import path from 'path'
+import { resolve } from '@/utils/route-path'
 import { isExternal } from '@/utils/validate'
 import Item from './Item'
 import AppLink from './Link'
@@ -80,6 +80,10 @@ export default {
 
       return false
     },
+    // 阶段2D-4a：外链 URL 存 meta.link（vue-router4 不允许 URL 作路由 path）
+    linkOf(route) {
+      return (route.meta && route.meta.link) || route.path
+    },
     resolvePath(routePath) {
       if (isExternal(routePath)) {
         return routePath
@@ -87,7 +91,7 @@ export default {
       if (isExternal(this.basePath)) {
         return this.basePath
       }
-      return path.resolve(this.basePath, routePath)
+      return resolve(this.basePath, routePath)
     }
   }
 }

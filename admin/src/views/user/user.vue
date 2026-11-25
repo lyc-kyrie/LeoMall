@@ -6,18 +6,18 @@
       <el-input v-model="listQuery.username" clearable class="filter-item" style="width: 200px;" :placeholder="$t('user_user.placeholder.filter_username')"/>
       <el-input v-model="listQuery.userId" clearable class="filter-item" style="width: 200px;" :placeholder="$t('user_user.placeholder.filter_user_id')"/>
       <el-input v-model="listQuery.mobile" clearable class="filter-item" style="width: 200px;" :placeholder="$t('user_user.placeholder.filter_mobile')"/>
-      <el-button class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
-      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
+      <el-button class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="Download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row>
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row>
       <el-table-column align="center" width="100px" :label="$t('user_user.table.id')" prop="id" sortable />
 
       <el-table-column align="center" :label="$t('user_user.table.nickname')" prop="nickname" />
 
       <el-table-column align="center" :label="$t('user_user.table.avatar')" width="80">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-avatar :src="scope.row.avatar" />
         </template>
       </el-table-column>
@@ -25,7 +25,7 @@
       <el-table-column align="center" :label="$t('user_user.table.mobile')" prop="mobile" />
 
       <el-table-column align="center" :label="$t('user_user.table.gender')" prop="gender">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag >{{ genderDic[scope.row.gender] }}</el-tag>
         </template>
       </el-table-column>
@@ -33,26 +33,26 @@
       <el-table-column align="center" :label="$t('user_user.table.birthday')" prop="birthday" />
 
       <el-table-column align="center" :label="$t('user_user.table.user_level')" prop="userLevel">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag >{{ levelDic[scope.row.userLevel] }}</el-tag>
         </template>
       </el-table-column>
 
       <el-table-column align="center" :label="$t('user_user.table.status')" prop="status">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag>{{ statusDic[scope.row.status] }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column align="center" :label="$t('user_user.table.actions')" width="250" class-name="small-padding fixed-width">
-        <template slot-scope="scope">
-          <el-button type="primary" size="mini" @click="handleDetail(scope.row)">{{ $t('app.button.detail') }}</el-button>
+        <template #default="scope">
+          <el-button type="primary" size="small" @click="handleDetail(scope.row)">{{ $t('app.button.detail') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
     <!-- 用户编辑对话框 -->
-    <el-dialog :visible.sync="userDialogVisible" :title="$t('user_user.dialog.edit')">
+    <el-dialog v-model="userDialogVisible" :title="$t('user_user.dialog.edit')">
       <el-form ref="userDetail" :model="userDetail" status-icon label-position="left" label-width="100px" style="width: 400px; margin-left:50px;">
         <el-form-item :label="$t('user_user.form.username')" prop="username">
           <el-input v-model="userDetail.username" :disabled="true" />
@@ -73,10 +73,10 @@
           <el-select v-model="userDetail.status" :placeholder="$t('user_user.placeholder.status')"><el-option v-for="(item, index) in statusDic" :key="index" :label="item" :value="index" /></el-select>
         </el-form-item>
       </el-form>
-      <div slot="footer" class="dialog-footer">
+      <template #footer><div class="dialog-footer">
         <el-button @click="userDialogVisible = false">{{ $t('app.button.cancel') }}</el-button>
         <el-button type="primary" @click="handleUserUpdate">{{ $t('app.button.confirm') }}</el-button>
-      </div>
+      </div></template>
     </el-dialog>
   </div>
 </template>

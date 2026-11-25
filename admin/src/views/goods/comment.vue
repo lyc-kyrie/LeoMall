@@ -5,12 +5,12 @@
     <div class="filter-container">
       <el-input v-model="listQuery.userId" clearable class="filter-item" style="width: 200px;" :placeholder="$t('goods_comment.placeholder.filter_user_id')" />
       <el-input v-model="listQuery.valueId" clearable class="filter-item" style="width: 200px;" :placeholder="$t('goods_comment.placeholder.filter_value_id')" />
-      <el-button class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
-      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
+      <el-button class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="Download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row>
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row>
 
       <el-table-column align="center" :label="$t('goods_comment.table.user_id')" prop="userId" />
 
@@ -21,7 +21,7 @@
       <el-table-column align="center" :label="$t('goods_comment.table.content')" prop="content" />
 
       <el-table-column align="center" :label="$t('goods_comment.table.pic_urls')" prop="picUrls">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-image v-for="item in scope.row.picUrls" :key="item" :src="item" :preview-src-list="scope.row.picUrls" :lazy="true" style="width: 40px; height: 40px; margin-right: 5px;" />
         </template>
       </el-table-column>
@@ -29,26 +29,26 @@
       <el-table-column align="center" :label="$t('goods_comment.table.add_time')" prop="addTime" />
 
       <el-table-column align="center" :label="$t('goods_comment.table.actions')" width="200" class-name="small-padding fixed-width">
-        <template slot-scope="scope">
-          <el-button type="primary" size="mini" @click="handleReply(scope.row)">{{ $t('app.button.reply') }}</el-button>
-          <el-button type="danger" size="mini" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
+        <template #default="scope">
+          <el-button type="primary" size="small" @click="handleReply(scope.row)">{{ $t('app.button.reply') }}</el-button>
+          <el-button type="danger" size="small" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
     <!-- 评论回复 -->
-    <el-dialog :visible.sync="replyFormVisible" :title="$t('goods_comment.dialog.reply')">
+    <el-dialog v-model="replyFormVisible" :title="$t('goods_comment.dialog.reply')">
       <el-form ref="replyForm" :model="replyForm" status-icon label-position="left" label-width="100px" style="width: 400px; margin-left:50px;">
         <el-form-item :label="$t('goods_comment.form.content')" prop="content">
           <el-input v-model="replyForm.content" :autosize="{ minRows: 4, maxRows: 8}" type="textarea" />
         </el-form-item>
       </el-form>
-      <div slot="footer" class="dialog-footer">
+      <template #footer><div class="dialog-footer">
         <el-button @click="replyFormVisible = false">{{ $t('app.button.cancel') }}</el-button>
         <el-button type="primary" @click="reply">{{ $t('app.button.confirm') }}</el-button>
-      </div>
+      </div></template>
     </el-dialog>
 
   </div>

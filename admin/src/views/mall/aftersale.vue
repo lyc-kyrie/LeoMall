@@ -5,13 +5,13 @@
     <div class="filter-container">
       <el-input v-model="listQuery.aftersaleSn" clearable class="filter-item" style="width: 200px;" :placeholder="$t('mall_aftersale.placeholder.filter_aftersale_sn')" />
       <el-input v-model="listQuery.orderId" clearable class="filter-item" style="width: 200px;" :placeholder="$t('mall_aftersale.placeholder.filter_order_id')" />
-      <el-button v-permission="['GET /leomall/admin/aftersale/list']" class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
-      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/aftersale/list']" class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="Download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
     </div>
 
     <div class="operator-container">
-      <el-button v-permission="['GET /leomall/admin/aftersale/batch-recept']" class="filter-item" type="success" icon="el-icon-info" @click="handleBatchRecept">{{ $t('mall_aftersale.button.batch_recept') }}</el-button>
-      <el-button v-permission="['GET /leomall/admin/aftersale/batch-reject']" class="filter-item" type="danger" icon="el-icon-delete" @click="handleBatchReject">{{ $t('mall_aftersale.button.batch_reject') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/aftersale/batch-recept']" class="filter-item" type="success" icon="Info" @click="handleBatchRecept">{{ $t('mall_aftersale.button.batch_recept') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/aftersale/batch-reject']" class="filter-item" type="danger" icon="Delete" @click="handleBatchReject">{{ $t('mall_aftersale.button.batch_reject') }}</el-button>
     </div>
 
     <el-tabs v-model="tab" @tab-click="handleClick">
@@ -20,14 +20,14 @@
       <el-tab-pane :label="$t('mall_aftersale.section.unrefund')" name="unrefund" />
     </el-tabs>
 
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row @selection-change="handleSelectionChange">
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" />
 
       <el-table-column align="center" :label="$t('mall_aftersale.table.aftersale_sn')" prop="aftersaleSn" />
       <el-table-column align="center" :label="$t('mall_aftersale.table.order_id')" prop="orderId" />
       <el-table-column align="center" :label="$t('mall_aftersale.table.user_id')" prop="userId" />
       <el-table-column align="center" :label="$t('mall_aftersale.table.type')" prop="type">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag :type="typeTag[scope.row.type]">{{ typeDesc[scope.row.type] }}</el-tag>
         </template>
       </el-table-column>
@@ -36,22 +36,22 @@
       <el-table-column align="center" :label="$t('mall_aftersale.table.add_time')" prop="addTime" />
 
       <el-table-column align="center" :label="$t('mall_aftersale.table.actions')" min-width="120" class-name="small-padding fixed-width">
-        <template slot-scope="scope">
-          <el-button v-permission="['POST /leomall/admin/aftersale/detail']" type="primary" size="mini" @click="handleRead(scope.row)">{{ $t('app.button.detail') }}</el-button>
-          <el-button v-if="scope.row.status === 1" v-permission="['POST /leomall/admin/aftersale/recept']" type="success" size="mini" @click="handleRecept(scope.row)">{{ $t('mall_aftersale.button.recept') }}</el-button>
-          <el-button v-if="scope.row.status === 1" v-permission="['POST /leomall/admin/aftersale/reject']" type="danger" size="mini" @click="handleReject(scope.row)">{{ $t('mall_aftersale.button.reject') }}</el-button>
-          <el-button v-if="scope.row.status === 2" v-permission="['POST /leomall/admin/aftersale/refund']" type="warning" size="mini" @click="handleRefund(scope.row)">{{ $t('mall_aftersale.button.refund') }}</el-button>
+        <template #default="scope">
+          <el-button v-permission="['POST /leomall/admin/aftersale/detail']" type="primary" size="small" @click="handleRead(scope.row)">{{ $t('app.button.detail') }}</el-button>
+          <el-button v-if="scope.row.status === 1" v-permission="['POST /leomall/admin/aftersale/recept']" type="success" size="small" @click="handleRecept(scope.row)">{{ $t('mall_aftersale.button.recept') }}</el-button>
+          <el-button v-if="scope.row.status === 1" v-permission="['POST /leomall/admin/aftersale/reject']" type="danger" size="small" @click="handleReject(scope.row)">{{ $t('mall_aftersale.button.reject') }}</el-button>
+          <el-button v-if="scope.row.status === 2" v-permission="['POST /leomall/admin/aftersale/refund']" type="warning" size="small" @click="handleRefund(scope.row)">{{ $t('mall_aftersale.button.refund') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
     <el-tooltip placement="top" :content="$t('app.tooltip.back_to_top')">
       <back-to-top :visibility-height="100" />
     </el-tooltip>
     <!-- 详情对话框 -->
-    <el-dialog :visible.sync="aftersaleDialogVisible" :title="$t('mall_aftersale.dialog.detail')" width="800">
+    <el-dialog v-model="aftersaleDialogVisible" :title="$t('mall_aftersale.dialog.detail')" width="800">
       <section ref="print">
         <el-form :data="aftersaleDetail" label-position="left">
           <el-form-item :label="$t('mall_aftersale.form.id')">
@@ -93,9 +93,9 @@
             <span>{{ aftersaleDetail.handleTime }}</span>
           </el-form-item>
           <el-form-item :label="$t('mall_aftersale.form.pictures')">
-            <el-table :data="aftersaleDetail.pictures" border fit highlight-current-row>
+            <el-table stripe :data="aftersaleDetail.pictures" fit highlight-current-row>
               <el-table-column align="center" :label="$t('mall_aftersale.table.detail_pictures')">
-                <template slot-scope="scope">
+                <template #default="scope">
                   <a :href="scope.row" target="_blank">
                     <img :src="scope.row" width="40">
                   </a>
@@ -105,9 +105,9 @@
           </el-form-item>
         </el-form>
       </section>
-      <span slot="footer" class="dialog-footer">
+      <template #footer><span class="dialog-footer">
         <el-button @click="aftersaleDialogVisible = false">{{ $t('mall_aftersale.button.cancel') }}</el-button>
-      </span>
+      </span></template>
     </el-dialog>
   </div>
 </template>

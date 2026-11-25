@@ -1,13 +1,13 @@
 <template>
   <el-dropdown trigger="click" @command="handleSetSize">
     <div>
-      <i class="el-icon-rank" />
+      <el-icon><Rank /></el-icon>
     </div>
-    <el-dropdown-menu slot="dropdown">
-      <el-dropdown-item :disabled="size==='medium'" command="medium">Medium</el-dropdown-item>
+    <template #dropdown><el-dropdown-menu>
+      <el-dropdown-item :disabled="size==='default'" command="default">Default</el-dropdown-item>
       <el-dropdown-item :disabled="size==='small'" command="small">Small</el-dropdown-item>
-      <el-dropdown-item :disabled="size==='mini'" command="mini">Mini</el-dropdown-item>
-    </el-dropdown-menu>
+      <el-dropdown-item :disabled="size==='large'" command="large">Large</el-dropdown-item>
+    </el-dropdown-menu></template>
   </el-dropdown>
 </template>
 
@@ -20,7 +20,7 @@ export default {
   },
   methods: {
     handleSetSize(size) {
-      this.$ELEMENT.size = size
+      // 阶段2D-4a：EP 全局 size 由 App 的 el-config-provider 响应式接管
       this.$store.dispatch('setSize', size)
       this.refreshView()
       this.$message({

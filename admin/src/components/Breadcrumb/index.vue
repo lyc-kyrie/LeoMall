@@ -10,8 +10,7 @@
 </template>
 
 <script>
-import pathToRegexp from 'path-to-regexp'
-
+// 阶段2D-4a：path-to-regexp 依赖移除，:param 占位直接替换
 export default {
   data() {
     return {
@@ -55,8 +54,7 @@ export default {
     pathCompile(path) {
       // To solve this problem https://github.com/PanJiaChen/vue-element-admin/issues/561
       const { params } = this.$route
-      var toPath = pathToRegexp.compile(path)
-      return toPath(params)
+      return path.replace(/:([a-zA-Z0-9_]+)/g, (_, key) => params[key] || '')
     },
     handleLink(item) {
       const { redirect, path } = item

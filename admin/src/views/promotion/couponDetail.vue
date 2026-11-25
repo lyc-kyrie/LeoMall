@@ -14,7 +14,7 @@
         <el-col :span="4" class="table-cell">{{ coupon.name }}</el-col>
         <el-col :span="4" class="table-cell">{{ coupon.desc }}</el-col>
         <el-col :span="4" class="table-cell">{{ coupon.tag }}</el-col>
-        <el-col :span="4" class="table-cell">{{ coupon.type | formatType }}</el-col>
+        <el-col :span="4" class="table-cell">{{ formatType(coupon.type) }}</el-col>
         <el-col :span="4" class="table-cell">{{ $t('promotion_coupon_detail.text.coupon_min', { min: coupon.min }) }}</el-col>
         <el-col :span="4" class="table-cell">{{ $t('promotion_coupon_detail.text.coupon_discount', { discount: coupon.discount }) }}</el-col>
       </el-row>
@@ -28,8 +28,8 @@
       </el-row>
       <el-row>
         <el-col :span="4" class="table-cell">{{ coupon.limit }}</el-col>
-        <el-col :span="4" class="table-cell">{{ coupon.status | formatStatus }}</el-col>
-        <el-col :span="4" class="table-cell">{{ coupon.goodsType | formatGoodsType }}</el-col>
+        <el-col :span="4" class="table-cell">{{ formatStatus(coupon.status) }}</el-col>
+        <el-col :span="4" class="table-cell">{{ formatGoodsType(coupon.goodsType) }}</el-col>
         <el-col :span="4" class="table-cell">{{ getTimeScope() }}</el-col>
         <el-col :span="4" class="table-cell">{{ coupon.code }}</el-col>
         <el-col :span="4" class="table-cell">{{ coupon.total === 0 ? $t('promotion_coupon_detail.text.unlimited') : coupon.total }}</el-col>
@@ -42,11 +42,11 @@
       <el-select v-model="listQuery.status" clearable style="width: 200px" class="filter-item" :placeholder="$t('promotion_coupon_detail.placeholder.filter_status')">
         <el-option v-for="type in useStatusOptions" :key="type.value" :label="type.label" :value="type.value"/>
       </el-select>
-      <el-button v-permission="['GET /leomall/admin/coupon/listuser']" class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/coupon/listuser']" class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row>
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row>
 
       <el-table-column align="center" :label="$t('promotion_coupon_detail.table.id')" prop="id" sortable />
 
@@ -55,7 +55,7 @@
       <el-table-column align="center" :label="$t('promotion_coupon_detail.table.add_time')" prop="addTime" />
 
       <el-table-column align="center" :label="$t('promotion_coupon_detail.table.use_status')" prop="status">
-        <template slot-scope="scope">{{ scope.row.status | formatUseStatus }}</template>
+        <template #default="scope">{{ formatUseStatus(scope.row.status) }}</template>
       </el-table-column>
 
       <el-table-column align="center" :label="$t('promotion_coupon_detail.table.order_id')" prop="orderId" />
@@ -64,7 +64,7 @@
 
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
   </div>
 </template>

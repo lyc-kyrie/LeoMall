@@ -6,16 +6,16 @@
       <el-input v-model="listQuery.goodsId" clearable class="filter-item" style="width: 160px;" :placeholder="$t('goods_list.placeholder.filter_goods_id')" />
       <el-input v-model="listQuery.goodsSn" clearable class="filter-item" style="width: 160px;" :placeholder="$t('goods_list.placeholder.filter_goods_sn')" />
       <el-input v-model="listQuery.name" clearable class="filter-item" style="width: 160px;" :placeholder="$t('goods_list.placeholder.filter_name')" />
-      <el-button class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
-      <el-button class="filter-item" type="primary" icon="el-icon-edit" @click="handleCreate">{{ $t('app.button.create') }}</el-button>
-      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
-      <el-button class="filter-item" type="danger" icon="el-icon-delete" :disabled="batchDeleteArr.length === 0" @click="handleDeleteRows">{{ $t('app.button.batch_delete') }}</el-button>
+      <el-button class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button class="filter-item" type="primary" icon="Edit" @click="handleCreate">{{ $t('app.button.create') }}</el-button>
+      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="Download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
+      <el-button class="filter-item" type="danger" icon="Delete" :disabled="batchDeleteArr.length === 0" @click="handleDeleteRows">{{ $t('app.button.batch_delete') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row @selection-change="handleSelectionChange">
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row @selection-change="handleSelectionChange">
       <el-table-column type="expand">
-        <template slot-scope="props">
+        <template #default="props">
           <el-form label-position="left" class="table-expand">
             <el-form-item :label="$t('goods_list.table.goods_sn')">
               <span>{{ props.row.goodsSn }}</span>
@@ -48,23 +48,23 @@
       <el-table-column align="center" min-width="100" :label="$t('goods_list.table.name')" prop="name" />
 
       <el-table-column align="center" property="iconUrl" :label="$t('goods_list.table.pic_url')">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-image :src="thumbnail(scope.row.picUrl)" :preview-src-list="toPreview(scope.row, scope.row.picUrl)" style="width: 40px; height: 40px" />
         </template>
       </el-table-column>
 
       <el-table-column align="center" property="iconUrl" :label="$t('goods_list.table.share_url')">
-        <template slot-scope="scope">
+        <template #default="scope">
           <img :src="scope.row.shareUrl" width="40">
         </template>
       </el-table-column>
 
       <el-table-column align="center" :label="$t('goods_list.table.detail')" prop="detail">
-        <template slot-scope="scope">
-          <el-dialog :visible.sync="detailDialogVisible" :title="$t('goods_list.dialog.detail')">
+        <template #default="scope">
+          <el-dialog v-model="detailDialogVisible" :title="$t('goods_list.dialog.detail')">
             <div class="goods-detail-box" v-html="goodsDetail" />
           </el-dialog>
-          <el-button type="primary" size="mini" @click="showDetail(scope.row.detail)">{{ $t('app.button.view') }}</el-button>
+          <el-button type="primary" size="small" @click="showDetail(scope.row.detail)">{{ $t('app.button.view') }}</el-button>
         </template>
       </el-table-column>
 
@@ -73,32 +73,32 @@
       <el-table-column align="center" :label="$t('goods_list.table.retail_price')" prop="retailPrice" />
 
       <el-table-column align="center" :label="$t('goods_list.table.is_new')" prop="isNew">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag :type="scope.row.isNew ? 'success' : 'error' ">{{ $t(scope.row.isNew ? 'goods_list.value.is_new_true' : 'goods_list.value.is_new_false') }}</el-tag>
         </template>
       </el-table-column>
 
       <el-table-column align="center" :label="$t('goods_list.table.is_hot')" prop="isHot">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag :type="scope.row.isHot ? 'success' : 'error' ">{{ $t(scope.row.isHot ? 'goods_list.value.is_hot_true' : 'goods_list.value.is_hot_false') }}</el-tag>
         </template>
       </el-table-column>
 
       <el-table-column align="center" :label="$t('goods_list.table.is_on_sale')" prop="isOnSale">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-tag :type="scope.row.isOnSale ? 'success' : 'error' ">{{ $t(scope.row.isOnSale ? 'goods_list.value.is_on_sale_true' : 'goods_list.value.is_on_sale_false') }}</el-tag>
         </template>
       </el-table-column>
 
       <el-table-column align="center" :label="$t('goods_list.table.actions')" width="200" class-name="small-padding fixed-width">
-        <template slot-scope="scope">
-          <el-button type="primary" size="mini" @click="handleUpdate(scope.row)">{{ $t('app.button.edit') }}</el-button>
-          <el-button type="danger" size="mini" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
+        <template #default="scope">
+          <el-button type="primary" size="small" @click="handleUpdate(scope.row)">{{ $t('app.button.edit') }}</el-button>
+          <el-button type="danger" size="small" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
     <el-tooltip placement="top" :content="$t('app.tooltip.back_to_top')">
       <back-to-top :visibility-height="100" />

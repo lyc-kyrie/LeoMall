@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Message, MessageBox } from 'element-ui'
+import { ElMessage as Message, ElMessageBox as MessageBox } from 'element-plus'
 import store from '@/store'
 import { getToken } from '@/utils/auth'
 
@@ -7,7 +7,7 @@ axios.defaults.withCredentials = true
 
 // create an axios instance
 const service = axios.create({
-  baseURL: process.env.VUE_APP_BASE_API, // api 的 base_url
+  baseURL: import.meta.env.VITE_BASE_API, // api 的 base_url
   timeout: 5000 // request timeout
 })
 

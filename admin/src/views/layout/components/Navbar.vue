@@ -21,10 +21,11 @@
 
       <el-dropdown class="avatar-container right-menu-item" trigger="click">
         <div class="avatar-wrapper">
-          <img :src="avatar+'?imageView2/1/w/80/h/80'" class="user-avatar">
-          <i class="el-icon-caret-bottom" />
+          <span class="user-avatar">{{ (name || 'A').slice(0, 1).toUpperCase() }}</span>
+          <span class="user-name">{{ name }}</span>
+          <el-icon class="avatar-caret"><ArrowDown /></el-icon>
         </div>
-        <el-dropdown-menu slot="dropdown">
+        <template #dropdown><el-dropdown-menu>
           <router-link to="/">
             <el-dropdown-item>
               {{ $t('navbar.menu.home') }}
@@ -35,10 +36,10 @@
               {{ $t('navbar.menu.password') }}
             </router-link>
           </el-dropdown-item>
-          <el-dropdown-item divided @click.native="logout">
+          <el-dropdown-item divided @click="logout">
             <span style="display:block;">{{ $t('navbar.menu.logout') }}</span>
           </el-dropdown-item>
-        </el-dropdown-menu>
+        </el-dropdown-menu></template>
       </el-dropdown>
     </div>
   </div>
@@ -86,6 +87,8 @@ export default {
   height: 50px;
   line-height: 50px;
   border-radius: 0px !important;
+  background: #fff;
+  border-bottom: 1px solid var(--line, #e5e6eb);
   .hamburger-container {
     line-height: 58px;
     height: 50px;
@@ -109,24 +112,37 @@ export default {
       display: inline-block;
       margin: 0 8px;
       vertical-align: top;
+      color: var(--text-2, #4e5969);
     }
     .avatar-container {
       height: 50px;
-      margin-right: 30px;
+      margin-right: 20px;
       .avatar-wrapper {
         cursor: pointer;
-        margin-top: 5px;
-        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 50px;
         .user-avatar {
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: #e8f4ff;
+          color: #1890ff;
+          font-size: 14px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        .el-icon-caret-bottom {
-          position: absolute;
-          right: -20px;
-          top: 25px;
+        .user-name {
+          font-size: 13px;
+          color: var(--text-1, #1f2329);
+          line-height: 1;
+        }
+        .avatar-caret {
           font-size: 12px;
+          color: var(--text-3, #86909c);
         }
       }
     }

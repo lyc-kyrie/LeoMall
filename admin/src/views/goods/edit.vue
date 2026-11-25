@@ -15,7 +15,7 @@
         </el-form-item>
         <el-form-item :label="$t('goods_edit.form.counter_price')" prop="counterPrice">
           <el-input v-model="goods.counterPrice" placeholder="0.00">
-            <template slot="append">元</template>
+            <template #append>元</template>
           </el-input>
         </el-form-item>
         <el-form-item :label="$t('goods_edit.form.is_new')" prop="isNew">
@@ -47,7 +47,7 @@
             accept=".jpg,.jpeg,.png,.gif"
           >
             <img v-if="goods.picUrl" :src="goods.picUrl" class="avatar">
-            <i v-else class="el-icon-plus avatar-uploader-icon" />
+            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
           </el-upload>
         </el-form-item>
 
@@ -64,7 +64,7 @@
             accept=".jpg,.jpeg,.png,.gif"
             list-type="picture-card"
           >
-            <i class="el-icon-plus" />
+            <el-icon><Plus /></el-icon>
           </el-upload>
         </el-form-item>
 
@@ -76,7 +76,7 @@
           <el-tag v-for="tag in keywords" :key="tag" closable type="primary" @close="handleClose(tag)">
             {{ tag }}
           </el-tag>
-          <el-input v-if="newKeywordVisible" ref="newKeywordInput" v-model="newKeyword" class="input-new-keyword" @keyup.enter.native="handleInputConfirm" @blur="handleInputConfirm" />
+          <el-input v-if="newKeywordVisible" ref="newKeywordInput" v-model="newKeyword" class="input-new-keyword" @keyup.enter="handleInputConfirm" @blur="handleInputConfirm" />
           <el-button v-else class="button-new-keyword" type="primary" @click="showInput">{{ $t('app.button.add') }}</el-button>
         </el-form-item>
 
@@ -102,28 +102,28 @@
 
     <el-card class="box-card">
       <h3>{{ $t('goods_edit.section.specifications') }}</h3>
-      <el-table :data="specifications">
+      <el-table stripe :data="specifications">
         <el-table-column property="specification" :label="$t('goods_edit.table.specification_name')" />
         <el-table-column property="value" :label="$t('goods_edit.table.specification_value')">
-          <template slot-scope="scope">
+          <template #default="scope">
             <el-tag type="primary">
               {{ scope.row.value }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column property="picUrl" :label="$t('goods_edit.table.specification_pic_url')">
-          <template slot-scope="scope">
+          <template #default="scope">
             <img v-if="scope.row.picUrl" :src="scope.row.picUrl" width="40">
           </template>
         </el-table-column>
         <el-table-column align="center" :label="$t('goods_edit.table.specification_actions')" width="200" class-name="small-padding fixed-width">
-          <template slot-scope="scope">
-            <el-button type="primary" size="mini" @click="handleSpecificationShow(scope.row)">{{ $t('app.button.settings') }}</el-button>
+          <template #default="scope">
+            <el-button type="primary" size="small" @click="handleSpecificationShow(scope.row)">{{ $t('app.button.settings') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <el-dialog :visible.sync="specVisiable" :title="$t('goods_edit.dialog.edit_specification')">
+      <el-dialog v-model="specVisiable" :title="$t('goods_edit.dialog.edit_specification')">
         <el-form ref="specForm" :rules="rules" :model="specForm" status-icon label-position="left" label-width="100px" style="width: 400px; margin-left:50px;">
           <el-form-item :label="$t('goods_edit.form.specification_name')" prop="specification">
             <el-input v-model="specForm.specification" disabled />
@@ -141,22 +141,22 @@
               accept=".jpg,.jpeg,.png,.gif"
             >
               <img v-if="specForm.picUrl" :src="specForm.picUrl" class="avatar">
-              <i v-else class="el-icon-plus avatar-uploader-icon" />
+              <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
             </el-upload>
           </el-form-item>
         </el-form>
-        <div slot="footer" class="dialog-footer">
+        <template #footer><div class="dialog-footer">
           <el-button @click="specVisiable = false">{{ $t('app.button.cancel') }}</el-button>
           <el-button type="primary" @click="handleSpecificationEdit">{{ $t('app.button.confirm') }}</el-button>
-        </div>
+        </div></template>
       </el-dialog>
     </el-card>
 
     <el-card class="box-card">
       <h3>{{ $t('goods_edit.section.products') }}</h3>
-      <el-table :data="products">
+      <el-table stripe :data="products">
         <el-table-column property="value" :label="$t('goods_edit.table.product_specifications')">
-          <template slot-scope="scope">
+          <template #default="scope">
             <el-tag v-for="tag in scope.row.specifications" :key="tag">
               {{ tag }}
             </el-tag>
@@ -165,18 +165,18 @@
         <el-table-column property="price" :label="$t('goods_edit.table.product_price')" />
         <el-table-column property="number" :label="$t('goods_edit.table.product_number')" />
         <el-table-column property="url" :label="$t('goods_edit.table.product_url')">
-          <template slot-scope="scope">
+          <template #default="scope">
             <img v-if="scope.row.url" :src="scope.row.url" width="40">
           </template>
         </el-table-column>
         <el-table-column align="center" :label="$t('goods_edit.table.product_actions')" width="200" class-name="small-padding fixed-width">
-          <template slot-scope="scope">
-            <el-button type="primary" size="mini" @click="handleProductShow(scope.row)">{{ $t('app.button.settings') }}</el-button>
+          <template #default="scope">
+            <el-button type="primary" size="small" @click="handleProductShow(scope.row)">{{ $t('app.button.settings') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <el-dialog :visible.sync="productVisiable" :title="$t('goods_edit.dialog.edit_product')">
+      <el-dialog v-model="productVisiable" :title="$t('goods_edit.dialog.edit_product')">
         <el-form ref="productForm" :model="productForm" status-icon label-position="left" label-width="100px" style="width: 400px; margin-left:50px;">
           <el-form-item :label="$t('goods_edit.form.product_specifications')" prop="specifications">
             <el-tag v-for="tag in productForm.specifications" :key="tag">
@@ -199,32 +199,32 @@
               accept=".jpg,.jpeg,.png,.gif"
             >
               <img v-if="productForm.url" :src="productForm.url" class="avatar">
-              <i v-else class="el-icon-plus avatar-uploader-icon" />
+              <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
             </el-upload>
           </el-form-item>
         </el-form>
-        <div slot="footer" class="dialog-footer">
+        <template #footer><div class="dialog-footer">
           <el-button @click="productVisiable = false">{{ $t('app.button.cancel') }}</el-button>
           <el-button type="primary" @click="handleProductEdit">{{ $t('app.button.confirm') }}</el-button>
-        </div>
+        </div></template>
       </el-dialog>
     </el-card>
 
     <el-card class="box-card">
       <h3>{{ $t('goods_edit.section.attributes') }}</h3>
       <el-button type="primary" @click="handleAttributeShow">{{ $t('app.button.create') }}</el-button>
-      <el-table :data="attributesData">
+      <el-table stripe :data="attributesData">
         <el-table-column property="attribute" :label="$t('goods_edit.table.attribute_name')" />
         <el-table-column property="value" :label="$t('goods_edit.table.attribute_value')" />
         <el-table-column align="center" :label="$t('goods_edit.table.attribute_actions')" width="200" class-name="small-padding fixed-width">
-          <template slot-scope="scope">
-            <el-button type="primary" size="mini" @click="handleAttributeShow(scope.row)">{{ $t('app.button.settings') }}</el-button>
-            <el-button type="danger" size="mini" @click="handleAttributeDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
+          <template #default="scope">
+            <el-button type="primary" size="small" @click="handleAttributeShow(scope.row)">{{ $t('app.button.settings') }}</el-button>
+            <el-button type="danger" size="small" @click="handleAttributeDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <el-dialog :visible.sync="attributeVisiable" :title="$t(attributeAdd ? 'goods_edit.dialog.edit_attribute_add' : 'goods_edit.dialog.edit_attribute_edit')">
+      <el-dialog v-model="attributeVisiable" :title="$t(attributeAdd ? 'goods_edit.dialog.edit_attribute_add' : 'goods_edit.dialog.edit_attribute_edit')">
         <el-form ref="attributeForm" :model="attributeForm" status-icon label-position="left" label-width="100px" style="width: 400px; margin-left:50px;">
           <el-form-item :label="$t('goods_edit.form.attribute_name')" prop="attribute">
             <el-input v-model="attributeForm.attribute" />
@@ -233,11 +233,11 @@
             <el-input v-model="attributeForm.value" />
           </el-form-item>
         </el-form>
-        <div slot="footer" class="dialog-footer">
+        <template #footer><div class="dialog-footer">
           <el-button @click="attributeVisiable = false">{{ $t('app.button.cancel') }}</el-button>
           <el-button v-if="attributeAdd" type="primary" @click="handleAttributeAdd">{{ $t('app.button.confirm') }}</el-button>
           <el-button v-else type="primary" @click="handleAttributeEdit">{{ $t('app.button.confirm') }}</el-button>
-        </div>
+        </div></template>
       </el-dialog>
     </el-card>
 
@@ -293,8 +293,8 @@
 <script>
 import { detailGoods, editGoods, listCatAndBrand } from '@/api/goods'
 import { createStorage, uploadPath } from '@/api/storage'
-import Editor from '@tinymce/tinymce-vue'
-import { MessageBox } from 'element-ui'
+import Editor from '@/components/TinymceEditor'
+import { ElMessageBox as MessageBox } from 'element-plus'
 import { getToken } from '@/utils/auth'
 
 export default {

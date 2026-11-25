@@ -1,5 +1,5 @@
-// https://element.eleme.cn/#/en-US/component/i18n
-import el from 'element-ui/lib/locale/lang/en'
+// 阶段2D-4a：element-ui locale → element-plus locale
+import el from 'element-plus/es/locale/lang/en'
 
 export default {
   ...el,

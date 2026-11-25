@@ -1,0 +1,33 @@
+/* 阶段2D-4a：Element Plus 主题走 CSS variables（替代 element-variables.scss 编译期全量 import）
+   主色沿用用户决策的原配置蓝 #1890ff（2026-11-24 反转拍板），浅色 SaaS 风在 2D-4b 落地 */
+:root {
+  --el-color-primary: #1890ff;
+  --el-color-primary-light-3: #5db1ff;
+  --el-color-primary-light-5: #8cc8ff;
+  --el-color-primary-light-7: #badfff;
+  --el-color-primary-light-8: #d1ebff;
+  --el-color-primary-light-9: #e8f4ff;
+  --el-color-primary-dark-2: #1373cc;
+  --el-color-success: #22a06b;
+  --el-color-warning: #f5a623;
+  --el-color-danger: #e5484d;
+  --el-color-error: #e5484d;
+  --el-color-info: #6b7280;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-font-size-base: 14px;
+  --el-text-color-primary: #1f2329;
+  --el-text-color-regular: #4e5969;
+  --el-text-color-secondary: #86909c;
+  --el-border-color: #e5e6eb;
+  --el-border-color-light: #e5e6eb;
+  --el-border-color-lighter: #ebedf0;
+  --el-fill-color-light: #f7f8fa;
+  --el-bg-color: #ffffff;
+  --el-bg-color-page: #f7f8fa;
+  /* 阶段2D-5：列表通用规范——表头 --bg、斑马纹浅底、表格描边弱化 */
+  --el-table-header-bg-color: #f7f8fa;
+  --el-table-header-text-color: #4e5969;
+  --el-table-border-color: #ebedf0;
+  --el-fill-color-lighter: #fafbfc;
+}

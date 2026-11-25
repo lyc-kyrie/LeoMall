@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-badge :is-dot="hasNotice">
-      <i class="el-icon-bell" @click="click" />
+      <el-icon class="notice-bell" @click="click"><Bell /></el-icon>
     </el-badge>
   </div>
 </template>
@@ -19,7 +19,7 @@ export default {
   mounted() {
     this.timer = setInterval(this.checkNotice, 30 * 1000)
   },
-  beforeDestroy() {
+  beforeUnmount() {
     clearInterval(this.timer)
   },
   created() {
@@ -42,12 +42,12 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-::v-deep .el-badge__content.is-fixed.is-dot {
+:deep(.el-badge__content.is-fixed.is-dot) {
   right: 5px;
   top: 10px;
 }
 
-.el-icon-bell {
+.notice-bell {
   font-size: 20px;
   cursor: pointer;
 }

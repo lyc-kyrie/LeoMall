@@ -5,27 +5,27 @@
     <div class="filter-container">
       <el-input v-model="listQuery.title" clearable class="filter-item" style="width: 200px;" :placeholder="$t('sys_notice.placeholder.filter_title')" />
       <el-input v-model="listQuery.content" clearable class="filter-item" style="width: 200px;" :placeholder="$t('sys_notice.placeholder.filter_content')" />
-      <el-button v-permission="['GET /leomall/admin/notice/list']" class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
-      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/notice/list']" class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="Download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
     </div>
 
     <div class="operator-container">
-      <el-button v-permission="['POST /leomall/admin/notice/create']" class="filter-item" type="primary" icon="el-icon-edit" @click="handleCreate">{{ $t('app.button.create') }}</el-button>
-      <el-button v-permission="['GET /leomall/admin/notice/batch-delete']" class="filter-item" type="danger" icon="el-icon-delete" @click="handleBatchDelete">{{ $t('app.button.batch_delete') }}</el-button>
+      <el-button v-permission="['POST /leomall/admin/notice/create']" class="filter-item" type="primary" icon="Edit" @click="handleCreate">{{ $t('app.button.create') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/notice/batch-delete']" class="filter-item" type="danger" icon="Delete" @click="handleBatchDelete">{{ $t('app.button.batch_delete') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row @selection-change="handleSelectionChange">
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" />
 
       <el-table-column align="center" :label="$t('sys_notice.table.title')" prop="title" />
 
       <el-table-column align="center" :label="$t('sys_notice.table.content')" prop="content">
-        <template slot-scope="scope">
-          <el-dialog :visible.sync="contentDialogVisible" :title="$t('sys_notice.dialog.content_detail')">
+        <template #default="scope">
+          <el-dialog v-model="contentDialogVisible" :title="$t('sys_notice.dialog.content_detail')">
             <div v-html="contentDetail" />
           </el-dialog>
-          <el-button type="primary" size="mini" @click="showContent(scope.row.content)">{{ $t('app.button.view') }}</el-button>
+          <el-button type="primary" size="small" @click="showContent(scope.row.content)">{{ $t('app.button.view') }}</el-button>
         </template>
       </el-table-column>
 
@@ -34,17 +34,17 @@
       <el-table-column align="center" :label="$t('sys_notice.table.admin_id')" prop="adminId" />
 
       <el-table-column align="center" :label="$t('sys_notice.table.actions')" min-width="100" class-name="small-padding fixed-width">
-        <template slot-scope="scope">
-          <el-button v-permission="['POST /leomall/admin/notice/update']" type="primary" size="mini" @click="handleUpdate(scope.row)">{{ $t('app.button.edit') }}</el-button>
-          <el-button v-permission="['POST /leomall/admin/notice/delete']" type="danger" size="mini" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
+        <template #default="scope">
+          <el-button v-permission="['POST /leomall/admin/notice/update']" type="primary" size="small" @click="handleUpdate(scope.row)">{{ $t('app.button.edit') }}</el-button>
+          <el-button v-permission="['POST /leomall/admin/notice/delete']" type="danger" size="small" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
     <!-- 添加或修改对话框 -->
-    <el-dialog :title="textMap[dialogStatus]" :visible.sync="dialogFormVisible">
+    <el-dialog :title="textMap[dialogStatus]" v-model="dialogFormVisible">
       <el-form ref="dataForm" :rules="rules" :model="dataForm" status-icon label-position="left" label-width="100px">
         <el-form-item :label="$t('sys_notice.form.title')" prop="title">
           <el-input v-model="dataForm.title" />
@@ -53,11 +53,11 @@
           <editor v-model="dataForm.content" :init="editorInit" />
         </el-form-item>
       </el-form>
-      <div slot="footer" class="dialog-footer">
+      <template #footer><div class="dialog-footer">
         <el-button @click="dialogFormVisible = false">{{ $t('app.button.cancel') }}</el-button>
         <el-button v-if="dialogStatus=='create'" type="primary" @click="createData">{{ $t('app.button.confirm') }}</el-button>
         <el-button v-else type="primary" @click="updateData">{{ $t('app.button.confirm') }}</el-button>
-      </div>
+      </div></template>
     </el-dialog>
 
     <el-tooltip placement="top" :content="$t('app.tooltip.back_to_top')">
@@ -72,7 +72,7 @@ import { listNotice, createNotice, updateNotice, deleteNotice, batchDeleteNotice
 import BackToTop from '@/components/BackToTop'
 import Pagination from '@/components/Pagination' // Secondary package based on el-pagination
 import _ from 'lodash'
-import Editor from '@tinymce/tinymce-vue'
+import Editor from '@/components/TinymceEditor'
 import { createStorage } from '@/api/storage'
 import { getToken } from '@/utils/auth'
 

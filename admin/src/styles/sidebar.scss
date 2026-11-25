@@ -5,12 +5,14 @@
     transition: margin-left .28s;
     margin-left: $sideBarWidth;
     position: relative;
+    background: var(--bg, #f7f8fa);
   }
 
   .sidebar-container {
     transition: width 0.28s;
     width: $sideBarWidth !important;
     background-color: $menuBg;
+    border-right: 1px solid var(--line, #e5e6eb);
     height: 100%;
     position: fixed;
     font-size: 0px;
@@ -20,7 +22,6 @@
     z-index: 1001;
     overflow: hidden;
 
-    // reset element-ui css
     .horizontal-collapse-transition {
       transition: 0s width ease-in-out, 0s padding-left ease-in-out, 0s padding-right ease-in-out;
     }
@@ -34,7 +35,35 @@
     }
 
     .el-scrollbar {
-      height: 100%;
+      height: calc(100% - 56px);
+    }
+
+    .sidebar-logo {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line, #e5e6eb);
+      .sidebar-logo-mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: $blue;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+      }
+      .sidebar-logo-text {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-1, #1f2329);
+        white-space: nowrap;
+      }
     }
 
     &.has-logo {
@@ -54,7 +83,8 @@
     }
 
     .svg-icon {
-      margin-right: 16px;
+      margin-right: 12px;
+      font-size: 16px;
     }
 
     .sub-el-icon {
@@ -66,22 +96,41 @@
       border: none;
       height: 100%;
       width: 100% !important;
+      background-color: $menuBg;
     }
 
-    // menu hover
-    .submenu-title-noDropdown,
-    .el-submenu__title {
+    .el-menu-item,
+    .el-sub-menu__title {
+      color: $menuText;
       &:hover {
         background-color: $menuHover !important;
+        color: $menuActiveText;
       }
     }
 
-    .is-active>.el-submenu__title {
+    .el-menu-item.is-active {
+      color: $menuActiveText;
+      background-color: #e8f4ff !important;
+      font-weight: 600;
+      position: relative;
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        bottom: 8px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: $blue;
+      }
+    }
+
+    .is-active > .el-sub-menu__title {
       color: $subMenuActiveText !important;
     }
 
-    & .nest-menu .el-submenu>.el-submenu__title,
-    & .el-submenu .el-menu-item {
+    & .nest-menu .el-sub-menu > .el-sub-menu__title,
+    & .el-sub-menu .el-menu-item {
       min-width: $sideBarWidth !important;
       background-color: $subMenuBg !important;
 
@@ -94,6 +143,13 @@
   .hideSidebar {
     .sidebar-container {
       width: 54px !important;
+    }
+
+    .sidebar-logo {
+      padding: 0 13px;
+      .sidebar-logo-text {
+        display: none;
+      }
     }
 
     .main-container {
@@ -114,14 +170,14 @@
         .sub-el-icon {
           margin-right: 12px;
           margin-left: -2px;
-        }        
+        }
       }
     }
 
-    .el-submenu {
+    .el-sub-menu {
       overflow: hidden;
 
-      &>.el-submenu__title {
+      & > .el-sub-menu__title {
         padding: 0 !important;
 
         .svg-icon {
@@ -133,16 +189,16 @@
           margin-left: -2px;
         }
 
-        .el-submenu__icon-arrow {
+        .el-sub-menu__icon-arrow {
           display: none;
         }
       }
     }
 
     .el-menu--collapse {
-      .el-submenu {
-        &>.el-submenu__title {
-          &>span {
+      .el-sub-menu {
+        & > .el-sub-menu__title {
+          & > span {
             height: 0;
             width: 0;
             overflow: hidden;
@@ -154,7 +210,7 @@
     }
   }
 
-  .el-menu--collapse .el-menu .el-submenu {
+  .el-menu--collapse .el-menu .el-sub-menu {
     min-width: $sideBarWidth !important;
   }
 
@@ -189,26 +245,25 @@
 
 // when menu collapsed
 .el-menu--vertical {
-  &>.el-menu {
+  & > .el-menu {
     .svg-icon {
-      margin-right: 16px;
+      margin-right: 12px;
     }
     .sub-el-icon {
       margin-right: 12px;
       margin-left: -2px;
-    }    
+    }
   }
 
-  .nest-menu .el-submenu>.el-submenu__title,
+  .nest-menu .el-sub-menu > .el-sub-menu__title,
   .el-menu-item {
     &:hover {
-      // you can use $subMenuHover
       background-color: $menuHover !important;
     }
   }
 
   // the scroll bar appears when the subMenu is too long
-  >.el-menu--popup {
+  > .el-menu--popup {
     max-height: 100vh;
     overflow-y: auto;
 

@@ -9,11 +9,11 @@
         :to="{ path: tag.path, query: tag.query, fullPath: tag.fullPath }"
         tag="span"
         class="tags-view-item"
-        @click.middle.native="!isAffix(tag)?closeSelectedTag(tag):''"
-        @contextmenu.prevent.native="openMenu(tag,$event)"
+        @click.middle="!isAffix(tag)?closeSelectedTag(tag):''"
+        @contextmenu.prevent="openMenu(tag,$event)"
       >
         {{ $t(tag.title) }}
-        <span v-if="!isAffix(tag)" class="el-icon-close" @click.prevent.stop="closeSelectedTag(tag)" />
+        <el-icon v-if="!isAffix(tag)" class="tag-close" @click.prevent.stop="closeSelectedTag(tag)"><Close /></el-icon>
       </router-link>
     </scroll-pane>
     <ul v-show="visible" :style="{left:left+'px',top:top+'px'}" class="contextmenu">
@@ -27,7 +27,7 @@
 
 <script>
 import ScrollPane from './ScrollPane'
-import path from 'path'
+import { resolve } from '@/utils/route-path'
 export default {
   components: { ScrollPane },
   data() {
@@ -75,7 +75,7 @@ export default {
       let tags = []
       routes.forEach(route => {
         if (route.meta && route.meta.affix) {
-          const tagPath = path.resolve(basePath, route.path)
+          const tagPath = resolve(basePath, route.path)
           tags.push({
             fullPath: tagPath,
             path: tagPath,
@@ -199,8 +199,7 @@ export default {
   height: 34px;
   width: 100%;
   background: #fff;
-  border-bottom: 1px solid #d8dce5;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, .12), 0 0 3px 0 rgba(0, 0, 0, .04);
+  border-bottom: 1px solid var(--line, #e5e6eb);
   .tags-view-wrapper {
     .tags-view-item {
       display: inline-block;
@@ -208,8 +207,9 @@ export default {
       cursor: pointer;
       height: 26px;
       line-height: 26px;
-      border: 1px solid #d8dce5;
-      color: #495060;
+      border: 1px solid var(--line, #e5e6eb);
+      border-radius: 6px;
+      color: var(--text-2, #4e5969);
       background: #fff;
       padding: 0 8px;
       font-size: 12px;
@@ -222,9 +222,9 @@ export default {
         margin-right: 15px;
       }
       &.active {
-        background-color: #42b983;
+        background-color: #1890ff;
         color: #fff;
-        border-color: #42b983;
+        border-color: #1890ff;
         &::before {
           content: '';
           background: #fff;
@@ -263,26 +263,25 @@ export default {
 </style>
 
 <style lang="scss">
-//reset element css of el-icon-close
+// 阶段2D-4b：EP 图标替代 element-ui 字体图标
 .tags-view-wrapper {
   .tags-view-item {
-    .el-icon-close {
-      width: 16px;
-      height: 16px;
-      vertical-align: 2px;
+    .tag-close {
+      width: 14px;
+      height: 14px;
+      vertical-align: -2px;
       border-radius: 50%;
       text-align: center;
       transition: all .3s cubic-bezier(.645, .045, .355, 1);
       transform-origin: 100% 50%;
-      &:before {
-        transform: scale(.6);
-        display: inline-block;
-        vertical-align: -3px;
-      }
+      cursor: pointer;
       &:hover {
-        background-color: #b4bccc;
+        background-color: rgba(0, 0, 0, .16);
         color: #fff;
       }
+    }
+    &.active .tag-close:hover {
+      background-color: rgba(255, 255, 255, .3);
     }
   }
 }

@@ -1,4 +1,15 @@
+import { markRaw } from 'vue'
 import { asyncRoutes, constantRoutes } from '@/router'
+
+// 阶段2D-4a：路由记录里的组件对象不做响应式代理（Vue3 警告 + 无谓开销）
+function rawRoutes(routes) {
+  return routes.map(r => {
+    const tmp = { ...r }
+    if (tmp.component) tmp.component = markRaw(tmp.component)
+    if (tmp.children) tmp.children = rawRoutes(tmp.children)
+    return tmp
+  })
+}
 
 /**
  * 通过meta.perms判断是否与当前用户权限匹配
@@ -40,13 +51,13 @@ function filterAsyncRoutes(routes, perms) {
 
 const permission = {
   state: {
-    routes: constantRoutes,
+    routes: rawRoutes(constantRoutes),
     addRoutes: []
   },
   mutations: {
     SET_ROUTES: (state, routes) => {
       state.addRoutes = routes
-      state.routes = constantRoutes.concat(routes)
+      state.routes = rawRoutes(constantRoutes).concat(routes)
     }
   },
   actions: {
@@ -55,9 +66,9 @@ const permission = {
         const { perms } = data
         let accessedRoutes
         if (perms.includes('*')) {
-          accessedRoutes = asyncRoutes
+          accessedRoutes = rawRoutes(asyncRoutes)
         } else {
-          accessedRoutes = filterAsyncRoutes(asyncRoutes, perms)
+          accessedRoutes = rawRoutes(filterAsyncRoutes(asyncRoutes, perms))
         }
         commit('SET_ROUTES', accessedRoutes)
         resolve()

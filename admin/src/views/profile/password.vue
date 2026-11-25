@@ -5,10 +5,10 @@
         <el-input v-model="dataForm.oldPassword" type="password"/>
       </el-form-item>
       <el-form-item :label="$t('profile_password.form.new_password')" prop="newPassword">
-        <el-input v-model="dataForm.newPassword" type="password" auto-complete="off"/>
+        <el-input v-model="dataForm.newPassword" type="password" autocomplete="off"/>
       </el-form-item>
       <el-form-item :label="$t('profile_password.form.new_password_2')" prop="newPassword2">
-        <el-input v-model="dataForm.newPassword2" type="password" auto-complete="off"/>
+        <el-input v-model="dataForm.newPassword2" type="password" autocomplete="off"/>
       </el-form-item>
     </el-form>
     <div style="margin-left:100px;">

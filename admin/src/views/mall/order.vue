@@ -10,15 +10,15 @@
       <el-select v-model="listQuery.orderStatusArray" multiple style="width: 200px" class="filter-item" :placeholder="$t('mall_order.placeholder.filter_order_status')">
         <el-option v-for="(key, value) in statusMap" :key="key" :label="key" :value="value" />
       </el-select>
-      <el-button v-permission="['GET /leomall/admin/order/list']" class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
-      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="el-icon-download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
+      <el-button v-permission="['GET /leomall/admin/order/list']" class="filter-item" type="primary" icon="Search" @click="handleFilter">{{ $t('app.button.search') }}</el-button>
+      <el-button :loading="downloadLoading" class="filter-item" type="primary" icon="Download" @click="handleDownload">{{ $t('app.button.download') }}</el-button>
     </div>
 
     <!-- 查询结果 -->
-    <el-table v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" border fit highlight-current-row>
+    <el-table stripe v-loading="listLoading" :data="list" :element-loading-text="$t('app.message.list_loading')" fit highlight-current-row>
 
       <el-table-column type="expand">
-        <template slot-scope="props">
+        <template #default="props">
           <div v-for="item in props.row.goodsVoList" :key="item.id" class="order-goods">
             <div class="picture">
               <img :src="item.picUrl" width="40">
@@ -45,7 +45,7 @@
       <el-table-column align="center" min-width="120" :label="$t('mall_order.table.order_sn')" prop="orderSn" />
 
       <el-table-column align="center" :label="$t('mall_order.table.avatar')" width="80">
-        <template slot-scope="scope">
+        <template #default="scope">
           <el-avatar :src="scope.row.avatar" />
         </template>
       </el-table-column>
@@ -53,24 +53,24 @@
       <el-table-column align="center" :label="$t('mall_order.table.user_name')" prop="userName" />
 
       <el-table-column align="center" :label="$t('mall_order.table.add_time')" prop="addTime" min-width="100">
-        <template slot-scope="scope">
+        <template #default="scope">
           {{ (scope.row.addTime || '').substring(0, 10) }}
         </template>
       </el-table-column>
       <el-table-column align="center" :label="$t('mall_order.table.order_status')" prop="orderStatus">
-        <template slot-scope="scope">
-          <el-tag>{{ scope.row.orderStatus | orderStatusFilter }}</el-tag>
+        <template #default="scope">
+          <el-tag>{{ orderStatusFilter(scope.row.orderStatus) }}</el-tag>
         </template>
       </el-table-column>
 
       <el-table-column align="center" :label="$t('mall_order.table.order_price')" prop="orderPrice">
-        <template slot-scope="scope">
+        <template #default="scope">
           {{ scope.row.orderPrice }} 元
         </template>
       </el-table-column>
 
       <el-table-column align="center" :label="$t('mall_order.table.actual_price')" prop="actualPrice">
-        <template slot-scope="scope">
+        <template #default="scope">
           {{ scope.row.actualPrice }} 元
         </template>
       </el-table-column>
@@ -78,7 +78,7 @@
       <el-table-column align="center" :label="$t('mall_order.table.pay_time')" prop="payTime" />
 
       <el-table-column align="center" :label="$t('mall_order.table.consignee')" prop="consignee">
-        <template slot-scope="scope">
+        <template #default="scope">
           <span style="color:red; font-weight:bold;">{{ scope.row.consignee }}</span>
         </template>
       </el-table-column>
@@ -90,27 +90,27 @@
       <el-table-column align="center" :label="$t('mall_order.table.ship_channel')" prop="shipChannel" />
 
       <el-table-column align="center" :label="$t('mall_order.table.actions')" width="250" class-name="oper">
-        <template slot-scope="scope">
-          <el-button type="primary" size="mini" @click="handleDetail(scope.row)">{{ $t('app.button.detail') }}</el-button>
-          <el-button type="danger" size="mini" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
-          <el-button type="warning" size="mini" @click="handlePay(scope.row)">{{ $t('mall_order.button.pay') }}</el-button>
-          <el-button type="primary" size="mini" @click="handleShip(scope.row)">{{ $t('mall_order.button.ship') }}</el-button>
-          <el-button type="danger" size="mini" @click="handleRefund(scope.row)">{{ $t('mall_order.button.refund') }}</el-button>
+        <template #default="scope">
+          <el-button type="primary" size="small" @click="handleDetail(scope.row)">{{ $t('app.button.detail') }}</el-button>
+          <el-button type="danger" size="small" @click="handleDelete(scope.row)">{{ $t('app.button.delete') }}</el-button>
+          <el-button type="warning" size="small" @click="handlePay(scope.row)">{{ $t('mall_order.button.pay') }}</el-button>
+          <el-button type="primary" size="small" @click="handleShip(scope.row)">{{ $t('mall_order.button.ship') }}</el-button>
+          <el-button type="danger" size="small" @click="handleRefund(scope.row)">{{ $t('mall_order.button.refund') }}</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <pagination v-show="total>0" :total="total" :page.sync="listQuery.page" :limit.sync="listQuery.limit" @pagination="getList" />
+    <pagination v-show="total>0" :total="total" v-model:page="listQuery.page" v-model:limit="listQuery.limit" @pagination="getList" />
 
     <!-- 订单详情对话框 -->
-    <el-dialog :visible.sync="orderDialogVisible" :title="$t('mall_order.dialog.detail')" width="800">
+    <el-dialog v-model="orderDialogVisible" :title="$t('mall_order.dialog.detail')" width="800">
       <section ref="print">
         <el-form :data="orderDetail" label-position="left">
           <el-form-item :label="$t('mall_order.form.detail_order_sn')">
             <span>{{ orderDetail.order.orderSn }}</span>
           </el-form-item>
           <el-form-item :label="$t('mall_order.form.detail_order_status')">
-            <el-tag>{{ orderDetail.order.orderStatus | orderStatusFilter }}</el-tag>
+            <el-tag>{{ orderStatusFilter(orderDetail.order.orderStatus) }}</el-tag>
           </el-form-item>
           <el-form-item :label="$t('mall_order.form.detail_user_nickname')">
             <span>{{ orderDetail.user.nickname }}</span>
@@ -124,14 +124,14 @@
             <span>{{ $t('mall_order.text.detail_address', { address: orderDetail.order.address }) }}</span>
           </el-form-item>
           <el-form-item :label="$t('mall_order.form.detail_goods')">
-            <el-table :data="orderDetail.orderGoods" border fit highlight-current-row>
+            <el-table stripe :data="orderDetail.orderGoods" fit highlight-current-row>
               <el-table-column align="center" :label="$t('mall_order.table.detail_goods_name')" prop="goodsName" />
               <el-table-column align="center" :label="$t('mall_order.table.detail_goods_sn')" prop="goodsSn" />
               <el-table-column align="center" :label="$t('mall_order.table.detail_goods_specifications')" prop="specifications" />
               <el-table-column align="center" :label="$t('mall_order.table.detail_goods_price')" prop="price" />
               <el-table-column align="center" :label="$t('mall_order.table.detail_goods_number')" prop="number" />
               <el-table-column align="center" :label="$t('mall_order.table.detail_goods_pic_url')" prop="picUrl">
-                <template slot-scope="scope">
+                <template #default="scope">
                   <img :src="scope.row.picUrl" width="40">
                 </template>
               </el-table-column>
@@ -168,14 +168,14 @@
           </el-form-item>
         </el-form>
       </section>
-      <span slot="footer" class="dialog-footer">
+      <template #footer><span class="dialog-footer">
         <el-button @click="orderDialogVisible = false">{{ $t('mall_order.button.detail_cancel') }}</el-button>
         <el-button type="primary" @click="printOrder">{{ $t('mall_order.button.detail_print') }}</el-button>
-      </span>
+      </span></template>
     </el-dialog>
 
     <!-- 收款对话框 -->
-    <el-dialog :visible.sync="payDialogVisible" :title="$t('mall_order.dialog.pay')" width="40%" center>
+    <el-dialog v-model="payDialogVisible" :title="$t('mall_order.dialog.pay')" width="40%" center>
       <el-form ref="payForm" :model="payForm" status-icon label-position="left" label-width="100px">
         <div style="margin-bottom: 10px;">
           {{ $t('mall_order.message.pay_confirm', { order_sn: payForm.orderSn }) }}
@@ -187,28 +187,28 @@
           <el-input-number v-model="payForm.newMoney" :controls="false" />
         </el-form-item>
       </el-form>
-      <el-table :data="payForm.goodsList">
+      <el-table stripe :data="payForm.goodsList">
         <el-table-column property="goodsName" :label="$t('mall_order.table.pay_goods_name')" />
         <el-table-column :label="$t('mall_order.table.pay_goods_specifications')">
-          <template slot-scope="scope">
+          <template #default="scope">
             {{ scope.row.specifications.join('-') }}
           </template>
         </el-table-column>
         <el-table-column property="onumber" width="100" :label="$t('mall_order.table.pay_goods_number')" />
         <!-- <el-table-column label="实际数量" width="100">
-          <template slot-scope="scope">
+          <template #default="scope">
             <el-input-number v-model="scope.row.number" :min="0" :controls="false" />
           </template>
         </el-table-column> -->
       </el-table>
-      <div slot="footer" class="dialog-footer">
+      <template #footer><div class="dialog-footer">
         <el-button @click="payDialogVisible = false">{{ $t('app.button.cancel') }}</el-button>
         <el-button type="primary" @click="confirmPay">{{ $t('app.button.confirm') }}</el-button>
-      </div>
+      </div></template>
     </el-dialog>
 
     <!-- 发货对话框 -->
-    <el-dialog :visible.sync="shipDialogVisible" :title="$t('mall_order.dialog.ship')">
+    <el-dialog v-model="shipDialogVisible" :title="$t('mall_order.dialog.ship')">
       <el-form ref="shipForm" :model="shipForm" status-icon label-position="left" label-width="100px" style="width: 400px; margin-left:50px;">
         <el-form-item :label="$t('mall_order.form.ship_channel')" prop="shipChannel">
           <el-select v-model="shipForm.shipChannel" :placeholder="$t('mall_order.placeholder.ship_channel')">
@@ -219,23 +219,23 @@
           <el-input v-model="shipForm.shipSn" />
         </el-form-item>
       </el-form>
-      <div slot="footer" class="dialog-footer">
+      <template #footer><div class="dialog-footer">
         <el-button @click="shipDialogVisible = false">{{ $t('app.button.cancel') }}</el-button>
         <el-button type="primary" @click="confirmShip">{{ $t('app.button.confirm') }}</el-button>
-      </div>
+      </div></template>
     </el-dialog>
 
     <!-- 退款对话框 -->
-    <el-dialog :visible.sync="refundDialogVisible" :title="$t('mall_order.dialog.refund')">
+    <el-dialog v-model="refundDialogVisible" :title="$t('mall_order.dialog.refund')">
       <el-form ref="refundForm" :model="refundForm" status-icon label-position="left" label-width="100px" style="width: 400px; margin-left:50px;">
         <el-form-item :label="$t('mall_order.form.refund_money')" prop="refundMoney">
           <el-input v-model="refundForm.refundMoney" :disabled="true" />
         </el-form-item>
       </el-form>
-      <div slot="footer" class="dialog-footer">
+      <template #footer><div class="dialog-footer">
         <el-button @click="refundDialogVisible = false">{{ $t('app.button.cancel') }}</el-button>
         <el-button type="primary" @click="confirmRefund">{{ $t('app.button.confirm') }}</el-button>
-      </div>
+      </div></template>
     </el-dialog>
 
   </div>
@@ -257,7 +257,7 @@
   margin-left: 1px;
 }
 
-::v-deep .el-table__expanded-cell {
+:deep() .el-table__expanded-cell {
   padding: 6px 80px;
 }
 

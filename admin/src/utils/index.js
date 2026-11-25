@@ -42,8 +42,9 @@ export function thumbnail(src) {
 }
 
 export function toPreview(item, url) {
-  item.preview = [url]
-  return item.preview
+  // 阶段2D-4a：改纯函数——原实现 item.preview=[url] 在渲染期写响应式行数据，
+  // Vue3 下触发 ElTableBody「Maximum recursive updates exceeded」死循环
+  return [url]
 }
 
 export function formatTime(time, option) {

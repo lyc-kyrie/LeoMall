@@ -3,38 +3,41 @@
     <div class="locale-changer">
       <locale-changer />
     </div>
-    <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" auto-complete="on" label-position="left">
-      <div class="title-container">
-        <h3 class="title">{{ $t('login.page.title') }}</h3>
-      </div>
-      <el-form-item prop="username">
-        <span class="svg-container">
-          <svg-icon icon-class="user" />
-        </span>
-        <el-input v-model="loginForm.username" name="username" type="text" tabindex="1" auto-complete="on" :placeholder="$t('login.placeholder.username')" />
-      </el-form-item>
 
-      <el-form-item prop="password">
-        <span class="svg-container">
-          <svg-icon icon-class="password" />
-        </span>
-        <el-input v-model="loginForm.password" :type="passwordType" name="password" auto-complete="on" tabindex="2" show-password :placeholder="$t('login.placeholder.password')" @keyup.enter.native="handleLogin" />
-      </el-form-item>
-
-      <el-form-item prop="code">
-        <span class="svg-container">
-          <svg-icon icon-class="lock" />
-        </span>
-        <el-input v-model="loginForm.code" auto-complete="off" name="code" tabindex="3" placeholder="验证码" style="width: 60%" @keyup.enter.native="handleLogin" />
-        <div class="login-code">
-          <img :src="codeImg" @click="getCode">
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-brand-mark">L</div>
+        <div class="login-brand-text">
+          <div class="login-brand-name">LeoMall 管理端</div>
+          <div class="login-brand-sub">智能商城运营后台</div>
         </div>
-      </el-form-item>
+      </div>
 
-      <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">{{ $t('login.button.login') }}</el-button>
+      <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" autocomplete="on" label-position="top">
+        <el-form-item prop="username">
+          <el-input v-model="loginForm.username" name="username" type="text" tabindex="1" autocomplete="on" size="large" :placeholder="$t('login.placeholder.username')">
+            <template #prefix><svg-icon icon-class="user" /></template>
+          </el-input>
+        </el-form-item>
 
-      
-    </el-form>
+        <el-form-item prop="password">
+          <el-input v-model="loginForm.password" :type="passwordType" name="password" autocomplete="on" tabindex="2" size="large" show-password :placeholder="$t('login.placeholder.password')" @keyup.enter="handleLogin">
+            <template #prefix><svg-icon icon-class="password" /></template>
+          </el-input>
+        </el-form-item>
+
+        <el-form-item prop="code">
+          <div class="login-code-row">
+            <el-input v-model="loginForm.code" autocomplete="off" name="code" tabindex="3" size="large" placeholder="验证码" @keyup.enter="handleLogin">
+              <template #prefix><svg-icon icon-class="lock" /></template>
+            </el-input>
+            <img class="login-code-img" :src="codeImg" title="点击刷新" @click="getCode">
+          </div>
+        </el-form-item>
+
+        <el-button :loading="loading" type="primary" size="large" class="login-submit" @click.prevent="handleLogin">{{ $t('login.button.login') }}</el-button>
+      </el-form>
+    </div>
 
     <div class="copyright">© 2026 LeoMall</div>
   </div>
@@ -85,10 +88,6 @@ export default {
   },
   created() {
     this.getCode()
-    // window.addEventListener('hashchange', this.afterQRScan)
-  },
-  destroyed() {
-    // window.removeEventListener('hashchange', this.afterQRScan)
   },
   methods: {
     getCode() {
@@ -122,62 +121,19 @@ export default {
 }
 </script>
 
-<style lang="scss">
-/* 修复input 背景不协调 和光标变色 */
-/* Detail see https://github.com/PanJiaChen/vue-element-admin/pull/927 */
-
-$bg:#283443;
-$light_gray:#fff;
-$cursor: #fff;
-
-@supports (-webkit-mask: none) and (not (cater-color: $cursor)) {
-  .login-container .el-input input {
-    color: $cursor;
-  }
-}
-
-/* reset element-ui css */
-.login-container {
-  .el-input {
-    display: inline-block;
-    height: 47px;
-    width: 85%;
-
-    input {
-      background: transparent;
-      border: 0px;
-      -webkit-appearance: none;
-      border-radius: 0px;
-      padding: 12px 5px 12px 15px;
-      color: $light_gray;
-      height: 47px;
-      caret-color: $cursor;
-
-      &:-webkit-autofill {
-        box-shadow: 0 0 0px 1000px $bg inset !important;
-        -webkit-text-fill-color: $cursor !important;
-      }
-    }
-  }
-
-  .el-form-item {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 5px;
-    color: #454545;
-  }
-}
-</style>
-
 <style lang="scss" scoped>
-$bg:#2d3a4b;
-$dark_gray:#889aa4;
-$light_gray:#eee;
-
+/* 阶段2D-4b：浅色 SaaS 登录卡（主色沿用原配置蓝 #1890ff） */
 .login-container {
   min-height: 100%;
   width: 100%;
-  background-color: $bg;
+  background:
+    radial-gradient(600px 300px at 15% 0%, rgba(24, 144, 255, 0.08), transparent 60%),
+    radial-gradient(600px 300px at 85% 100%, rgba(24, 144, 255, 0.06), transparent 60%),
+    var(--bg, #f7f8fa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
   overflow: hidden;
 
   .locale-changer {
@@ -186,68 +142,88 @@ $light_gray:#eee;
     right: 16px;
   }
 
+  .login-card {
+    width: 400px;
+    max-width: calc(100% - 32px);
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(31, 35, 41, 0.08);
+    padding: 32px 32px 24px;
+  }
+
+  .login-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+    .login-brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #1890ff;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+    }
+    .login-brand-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-1, #1f2329);
+      line-height: 1.2;
+    }
+    .login-brand-sub {
+      font-size: 12px;
+      color: var(--text-3, #86909c);
+      margin-top: 2px;
+    }
+  }
+
   .login-form {
-    position: relative;
-    width: 520px;
-    max-width: 100%;
-    padding: 160px 35px 0;
-    margin: 0 auto;
-    overflow: hidden;
+    :deep(.el-input__wrapper) {
+      border-radius: 8px;
+    }
+    :deep(.svg-icon) {
+      color: var(--text-3, #86909c);
+    }
   }
-  .login-code {
-    padding-top: 5px;
-    float: right;
-    img{
+
+  .login-code-row {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    .el-input {
+      flex: 1;
+    }
+    .login-code-img {
+      width: 108px;
+      height: 40px;
+      border-radius: 8px;
+      border: 1px solid var(--line, #e5e6eb);
       cursor: pointer;
-      vertical-align:middle
-    }
-  }
-  .tips {
-    font-size: 14px;
-    color: #fff;
-    margin-bottom: 10px;
-
-    span {
-      &:first-of-type {
-        margin-right: 16px;
-      }
+      object-fit: cover;
+      flex: none;
     }
   }
 
-  .svg-container {
-    padding: 6px 5px 6px 15px;
-    color: $dark_gray;
-    vertical-align: middle;
-    width: 30px;
-    display: inline-block;
+  .login-submit {
+    width: 100%;
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: 2px;
   }
 
-  .title-container {
-    position: relative;
-
-    .title {
-      font-size: 26px;
-      color: $light_gray;
-      margin: 0px auto 40px auto;
-      text-align: center;
-      font-weight: bold;
-    }
-  }
   .copyright {
     font-size: 12px;
-    color: #fff;
+    color: var(--text-3, #86909c);
     position: absolute;
-    bottom: 0;
+    bottom: 16px;
     left: 50%;
-    transform: translate(-50%, -50%);
-    margin-bottom: 20px;
+    transform: translateX(-50%);
     letter-spacing: 0.6px;
-    a {
-      font-weight: bold;
-      border-bottom: 1px solid #fff;
-      font-family: "PingFangSC-Semibold", sans-serif;
-    }
   }
 }
 </style>
-

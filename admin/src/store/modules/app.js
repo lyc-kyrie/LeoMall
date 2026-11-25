@@ -1,5 +1,8 @@
 import Cookies from 'js-cookie'
 
+// 阶段2D-4a：EP size 仅 default/small/large；旧 element-ui 的 medium/mini 归一化
+const normalizeSize = s => ({ medium: 'default', mini: 'small' }[s] || (['default', 'small', 'large'].includes(s) ? s : 'default'))
+
 const app = {
   state: {
     sidebar: {
@@ -8,7 +11,7 @@ const app = {
     },
     device: 'desktop',
     language: Cookies.get('language') || 'en',
-    size: Cookies.get('size') || 'medium'
+    size: normalizeSize(Cookies.get('size'))
   },
   mutations: {
     TOGGLE_SIDEBAR: state => {
@@ -33,8 +36,8 @@ const app = {
       Cookies.set('language', language)
     },
     SET_SIZE: (state, size) => {
-      state.size = size
-      Cookies.set('size', size)
+      state.size = normalizeSize(size)
+      Cookies.set('size', state.size)
     }
   },
   actions: {
