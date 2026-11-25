@@ -8,7 +8,7 @@
 		<div class="status_text">
 			<span class="red">
 				<countdown v-if="counting" :time="3000" @end="countDownEnd">
-					<template #default="props">{{ +props.seconds || 3 }}</template>秒
+					<template #default="props">{{ +props.seconds || 3 }}秒</template>
 				</countdown>
 			</span>
 			后返回到登录页, 您也可以
