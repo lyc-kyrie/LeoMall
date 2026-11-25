@@ -88,3 +88,7 @@ deploy/cloud/package/leomall/leomall.jar
 
 ### workbuddy 本地数据 ###
 .workbuddy/
+
+### 迁移期临时备份（2D-4 从 vue-cli 迁 Vite 时的旧入口备份）###
+*.bak
+*.orig

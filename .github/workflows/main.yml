@@ -1,8 +1,8 @@
 # P3-1 重建：旧工作流在根目录跑 mvn verify（根目录无 pom）、引用不存在的
 # leomall-admin / leomall-vue 目录，CI 从未真正生效。现按真实目录结构重写：
 #   server/  Maven 多模块（JDK 17，纯单元测试，无需 MySQL/Redis）
-#   admin/   Vue2 管理后台（Node 18 + openssl-legacy-provider 构建）
-#   h5/      Vue2 移动端（同上）
+#   admin/   Vue3 + Vite5 管理后台（阶段2D-4 迁移后，Node 18 直接构建）
+#   h5/      Vue3 + Vite5 移动端（阶段2D-1 迁移后，同上）
 #   agent/   Python FastAPI（uv 锁定依赖，编译 + 导入冒烟）
 # 说明：agent 的 pytest 存在 15 个存量夹具失败（演示目录快照不匹配，见
 # docs/AUDIT.md 第九节），修复前暂不作为 CI 门禁，避免长期红牌掩盖新回归。
@@ -51,9 +51,6 @@ jobs:
         run: npm ci --no-audit --no-fund --legacy-peer-deps
       - name: Build
         run: npm run build
-        env:
-          # webpack4 的 md4 哈希在 Node 17+ 需要 OpenSSL legacy provider
-          NODE_OPTIONS: --openssl-legacy-provider
 
   agent:
     name: Agent (Python / uv)
